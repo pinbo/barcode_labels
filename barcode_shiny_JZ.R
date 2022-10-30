@@ -1,7 +1,7 @@
-# library(qrcode)
+# 2022-10-25: v2: using R package barcodeLabel v0.2.0
 library(shiny)
-source("hidden_createPDF_JZ.R")
-
+# if(!require(barcodeLabel)) install.packages("https://github.com/pinbo/barcodeLabel/releases/download/v0.2.0/barcodeLabel_0.2.0.tar.gz", repos = NULL)
+library(barcodeLabel)
 # UI
   ui<-fluidPage(
     # App title ----
@@ -97,29 +97,32 @@ source("hidden_createPDF_JZ.R")
                              value = 4, min = 1, max = 100, width=NULL, step = 1))
          ),
          fluidRow(
-           column(width = 6,
+           column(width = 4,
          numericInput("barcode_height", 
-                             "Relative Height of 1D barcode (0-1)", 
+                             "Barcode Height (0-1)", 
                              value = 0.5, min=0, max=1)),
-         column(width = 6,
-         radioButtons("barcode_at_top", 
+         column(width = 4,
+         radioButtons("barcode_on_top", 
                              "1D barcode on top?", 
                              choices = c(Yes = TRUE, No = FALSE),
-                             selected = TRUE, inline = TRUE))
-         ), width = 6
+                             selected = TRUE, inline = TRUE)),
+         column(
+           width = 4,
+           radioButtons("text_align", 
+                        "Text alignment", 
+                        choices = c("left", "center"),
+                        selected = "center", inline = TRUE)
+         )
+         ), width = 7
       ),
       
       # Main panel for displaying outputs ----
       mainPanel(
-        h4(strong("Preview")),
-        plotOutput("label_preview", height = "auto", width = "auto"),
-        # label preview datatable
-        DT::DTOutput("check_make_labels"),
-        # code snippet
         br(),
-        p(strong("Reproducible Code")),
-        tags$body("Not: the 'at_text' parameter need to adjusted."),
-        verbatimTextOutput("PDF_code_render"),
+        h4(strong("Preview")),
+        br(),
+        plotOutput("label_preview", height = "auto", width = "auto"),
+        br(),br(),
         p(strong("5. Make PDF")),
         actionButton("make_pdf", "Make PDF"),
         p(strong("6. Download PDF")),
@@ -131,12 +134,15 @@ source("hidden_createPDF_JZ.R")
         br(),
         br(),
         h4(strong("Help")),
-        tags$body("Please check the github page for help:"),
+        tags$body("This is a shiny application for R package "),
+        tags$a('"barcode_labels"', href="https://github.com/pinbo/barcodeLabel"),
+        tags$body(". The Shiny R script is here:"),
         tags$a("https://github.com/pinbo/barcode_labels", href="https://github.com/pinbo/barcode_labels"),
-        br(),
-        tags$body("Basically, you just need to upload a comma or tab delimited text file and select the columns to make labels. The main function is below."),
-        verbatimTextOutput("function_help"),
-        width = 6
+        br(),br(),
+        tags$body("Basically, you just need to upload a comma or tab delimited text file and select the columns to make labels. For more complex label layout, please check out the "),
+        tags$body(" R package "),
+        tags$a('"barcode_labels"', href="https://github.com/pinbo/barcodeLabel"),
+        width = 5
       )
     )
   )
@@ -156,36 +162,20 @@ source("hidden_createPDF_JZ.R")
     # select column to make labels
     # Dynamically generate UI input when data is uploaded ----
     output$select_column <- renderUI({
-      selectInput(inputId = "barcode_var", 
-                  label = "2. Choose the variable for creating barcode", 
-                  choices = names(Labels_pdf()),
-                  multiple=FALSE)
+      selectInput(inputId = "barcode_var", label = "2. Choose the variable for creating barcode", 
+                  choices = names(Labels_pdf()), multiple=FALSE)
     })
     
     # add text
     output$add_text <- renderUI({
       fluidRow(
-      column(
-        width = 4,
-        textInput("prefix",  "Text Prefix", value = "")
-      ),
-      
-      column(
-        width = 4,
-        selectInput(
-          inputId = "variable",
-          label   = "Variable to add",
-          choices = c("Choose" = "", names(Labels_pdf()))
+        column( width = 4, textInput("prefix",  "Text Prefix", value = "")  ),
+        column( width = 4, selectInput( inputId = "variable", label   = "Variable to add",
+            choices = c("Choose" = "", names(Labels_pdf()))   )
+        ),
+        column(
+          width = 4, radioButtons("newline", "Add line break?", choices = c(Yes = "\n", No = ""), selected = "\n", inline = T)
         )
-      ),
-      
-      column(
-        width = 4,
-        radioButtons("newline", 
-                     "Add line break?", 
-                     choices = c(Yes = "\n", No = ""),
-                     selected = "\n", inline = T),
-      )
       )
     })
     # add more text
@@ -223,71 +213,37 @@ source("hidden_createPDF_JZ.R")
        updateNumericInput(session, "label_height", value = 1.0)
      }
     }, ignoreInit = TRUE)
+    # set text alignment and barcode height based on barcode type selection
+    observeEvent(input$type, {
+      if (input$type == "linear"){
+        updateNumericInput(session, "barcode_height", value = 0.5)
+        updateRadioButtons(session, "text_align", selected = "center")
+      }
+      else if (input$type == "matrix"){
+        updateNumericInput(session, "barcode_height", value = 1)
+        updateRadioButtons(session, "text_align", selected = "left")
+      }
+    }, ignoreInit = TRUE)
     
+    # dataset for drawing
+    tmp_label_list <-reactive({
+    req(input$labels)
+    # 1. create simple element layout on each label
+    simple_label_layout(
+      barcode_text=mydata()[,input$barcode_var],
+      print_text = mydata()[,"text2add"],
+      label_width = input$label_width,
+      label_height = input$label_height,
+      barcode_on_top = input$barcode_on_top,
+      barcode_height = input$barcode_height,
+      barcode_type=input$type, font_size = input$font_size,
+      fontfamily = input$fontfamily)
+    })
     
     # preview label file
-    # output$check_make_labels<-DT::renderDataTable(
-    #   mydata(), 
-    #   server = FALSE, 
-    #   selection = list(mode = "single", target = "column", selected = 1))
     output$label_preview <- renderImage({
-      labeltext = mydata()[1, "text2add"]
-      # if (labeltext == "" || is.null(labeltext)) labeltext = Labels_pdf()[1, input$barcode_var]
-      tt = mydata()[1,"text2add"]
-      nline_text = nchar(gsub("[^\n]", "", tt)) + 1 # number of lines
-      text_height = input$label_height * (1 - input$barcode_height)
-      Fsz = input$font_size
-      if(input$type == "matrix") {
-        ## vp for the qrcode within the grid layout
-        code_vp <- grid::viewport(
-          x=grid::unit(0.02, "npc"), 
-          y=grid::unit(0.90, "npc"), 
-          width = grid::unit(0.8 * input$label_height, "in"), 
-          height = grid::unit(0.8 * input$label_height, "in"), 
-          just=c("left", "top"))
-        ## vp for the text label within the grid layout
-        label_vp <- grid::viewport(
-          x=grid::unit(0.95 * input$label_height, "in"),
-          y=grid::unit(0.5, "npc"), 
-          width = grid::unit(0.7 * input$label_width, "in"), 
-          height = grid::unit(0.8 * input$label_height, "in"), 
-          just=c("left", "center"))
-        # adjust font size
-        Fsz = ifelse(Fsz * nline_text > input$label_height *0.8 * 72, text_height *0.8 * 72 / nline_text, Fsz)
-        label_plot <- qrcode_make(Labels = Labels_pdf()[1, input$barcode_var], ErrCorr = "H")
-      } else {
-        code_vp <- grid::viewport(
-          x=grid::unit(0.05, "npc"), 
-          y=grid::unit(input$barcode_height, "npc"), 
-          width = grid::unit(0.9 * input$label_width, "in"), 
-          height = grid::unit(input$barcode_height * input$label_height * 0.9, "in"), # *0.9 to leave spaces at bottom
-          just=c("left", "top"))
-          
-          label_vp <- grid::viewport(
-           x=grid::unit(0.05, "npc"), 
-           y=grid::unit(0.95, "npc"),
-           width = grid::unit(0.9 * input$label_width, "in"),
-           height = grid::unit(text_height * 0.9, "in"), 
-           just = c("left", "top"))
-          # if barcode needs to be at top
-          if (input$barcode_at_top){
-            code_vp <- grid::viewport(
-              x=grid::unit(0.05, "npc"), 
-              y=grid::unit(0.95, "npc"), 
-              width = grid::unit(0.9 * input$label_width, "in"), 
-              height = grid::unit(input$barcode_height * input$label_height * 0.8, "in"), # *0.9 to leave spaces
-              just=c("left", "top"))
-            
-            label_vp <- grid::viewport(
-              x=grid::unit(0.05, "npc"), 
-              y = grid::unit((1 - input$barcode_height), "npc"), 
-              width = grid::unit(0.9 *input$label_width, "in"),
-              height = grid::unit(text_height * 0.9, "in"), 
-              just = c("left", "top"))
-          }
-          Fsz = ifelse(Fsz * nline_text > text_height * 72, text_height * 72 / nline_text, Fsz)
-          label_plot <- code_128_make(Labels = Labels_pdf()[1, input$barcode_var])
-      }
+      vp_list = tmp_label_list()$vp_list
+      content_list = tmp_label_list()$content_list
       outputfile <- tempfile(fileext=".png")
       grDevices::png(outputfile,
                      width = input$label_width,
@@ -295,12 +251,25 @@ source("hidden_createPDF_JZ.R")
                      units = "in", res=300, family = input$fontfamily
                      )
       grid::grid.rect()
-      grid::pushViewport(code_vp)
-      grid::grid.draw(label_plot)
-      grid::popViewport()
-      grid::pushViewport(label_vp)
-      grid::grid.text(label = labeltext, #Labels_pdf()[1, input$barcode_var], 
-                      gp = grid::gpar(fontsize = Fsz, lineheight = 0.8))
+
+      if (length(vp_list) > 0){
+        for (j in 1:length(vp_list)){
+          vp = vp_list[[j]]
+          content = content_list[[j]]
+          grid::pushViewport(vp)
+          if (class(content) == "list") {# grob list
+            grid::grid.draw(content[[1]])
+          } else {# text
+            # grid::grid.text(label = content[1])
+            if (input$text_align == "left"){
+              grid::grid.text(label = content[1], x = grid::unit(0, "npc"), just = "left")
+            } else {
+              grid::grid.text(label = content[1])
+            }
+          }
+          grid::popViewport()
+        }
+      }
       grDevices::dev.off()
       list(src = outputfile,
            width = 100 * input$label_width, 
@@ -310,11 +279,13 @@ source("hidden_createPDF_JZ.R")
     )
     # text indicator that pdf finished making
     PDF_done<-eventReactive(input$make_pdf, {
-      custom_create_PDF(
-        Labels = mydata()[,input$barcode_var],
-        name = input$filename, 
-        type = input$type, 
-        Fsz = input$font_size, 
+      make_custom_label(
+        label_number = nrow(mydata()), # how many labels to print
+        name = input$filename, # pdf output file name
+        fontfamily = input$fontfamily, # "mono", "sans", "serif"
+        showborder = F, # whether to show border of labels
+        vp_list = tmp_label_list()$vp_list,
+        content_list = tmp_label_list()$content_list,
         numrow = input$numrow, 
         numcol = input$numcol, 
         page_width = input$page_width, 
@@ -323,79 +294,12 @@ source("hidden_createPDF_JZ.R")
         width_margin = input$width_margin, 
         label_width = input$label_width, 
         label_height = input$label_height, 
-        # x_space = input$x_space, 
-        # y_space = input$y_space,
-        replace_label = TRUE,
-        alt_text = mydata()[,"text2add"],
-        fontfamily =input$fontfamily,
-        showborder = FALSE, # whether to show border of labels
-        barcode_at_top = input$barcode_at_top,
-        barcode_height = input$barcode_height
-        )
+        text_align = input$text_align # left or center
+      )
       status<-"Done!"
       status
     })
-    PDF_code_snippet<-reactive({
-      noquote(
-        paste0("custom_create_PDF(Labels = label_csv[, \'",input$barcode_var, 
-               "\'], name = \'", input$filename, "\', 
-               type = \'", input$type, 
-               "\', Fsz = ", input$font_size, 
-               ", numrow = ", input$numrow, 
-               ", numcol = ", input$numcol, 
-               ", page_width = ", input$page_width, 
-               ", page_height = ", input$page_height, 
-               ", width_margin = ", input$width_margin, 
-               ", height_margin = ", input$height_margin, 
-               ", label_width = ", input$label_width, 
-               ", label_height = ", input$label_height, 
-               # ", x_space = ", input$x_space, 
-               # ", y_space = ", input$y_space,
-               ", replace_label = TRUE",
-               ", alt_text = paste0('Plot: ', label_csv$plot_name, '\nAcc: ', label_csv$accession_name)",
-               ", fontfamily = \'", input$fontfamily,
-               "\', barcode_at_top = ", input$barcode_at_top,
-               ", barcode_height = ", input$barcode_height,
-               ")"))
-    })
-    csv_code_snippet<-reactive({noquote(
-      paste0(
-        "label_csv <- read.csv( \'", input$labels$name,
-        "\', header = ", input$header, ", sep = \'", input$sep,
-        "\', stringsAsFactors = FALSE)"))})
-    output$PDF_code_render<-renderText({
-      paste(csv_code_snippet(), PDF_code_snippet(), sep = "\n")
-    })
-    
-    output$function_help <- renderText({
-      'custom_create_PDF <- function(
-    Labels = NULL, # vector containing label names used for generating barcodes
-    name = "LabelsOut", # pdf output file name
-    type = "linear", # "linear" for code128, or "linear2" for extended code128, or "matrix" for QR code
-    ErrCorr = "H", #  error correction value for matrix labels only: (L = Low (7%), M = Medium (15%), Q = Quantile (25%), H = High (30%)
-    Fsz = 12, # font size, will be adjusted to fit text space
-    Across = TRUE, # logical. When TRUE, print labels across rows, left to right. When FALSE, print labels down columns, top to bottom.
-    ERows = 0, # number of rows to skip.
-    ECols = 0, # number of columns to skip.
-    trunc = FALSE, # logical. Text is broken into multiple lines for longer ID codes, to prevent printing off of the label area. Default is TRUE. If trunc = FALSE, and text is larger than the physical label, the text will be shrunk down automatically.
-    numrow = 20, # Number of label rows per page
-    numcol = 4, # Number of columns per page
-    page_width = 8.5, # page width in inch
-    page_height = 11, # page height in inch
-    width_margin = 0.3, # side margin in inch
-    height_margin = 0.5, # top margin in inch
-    label_width = 1.75, # label width in inch
-    label_height = 0.5, # label height in inch
-    x_space = 0, # A value between 0 and 1. This sets the distance between the QR code and text of each label. Only applies when type = "matrix". 
-    y_space = 0.5, # A value between 0 and 1. This sets the distance between the QR code and text of each label. Only applies when type = "matrix". 
-    alt_text = NULL, # vector containing alternative names that are printed along with Labels BUT ARE NOT ENCODED in the barcode image.
-    replace_label = TRUE, # logical. Replace label text with alt_text.
-    fontfamily = "mono", # "mono", "sans", "serif"
-    showborder = FALSE, # whether to show border of labels
-    barcode_at_top = FALSE, # whether to print barcode at the top of the label
-    barcode_height = 0.5 # 0-1, proportion of the label height
-    )'
-    })
+
     # label preview
     
     # rendering of pdf indicator
