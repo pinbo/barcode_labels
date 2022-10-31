@@ -31,18 +31,19 @@ library(barcodeLabel)
          actionButton("textBn", "Add/append text"),
          actionButton("reset_text", "Reset text"),
          p(strong("4. (Optional) Modify PDF from default values")),
-         textInput("filename", "Output PDF file name", value = "LabelsOut"),
          fluidRow(
+           column(width = 3,
+                  textInput("filename", "Output PDF name", value = "LabelsOut")),
            column(width = 3,
          selectInput("type","Barcode Type", 
                       choices = list("Linear (1D)" = "linear",
                                      "Matrix (2D)" = "matrix"),
                       multiple = FALSE)),
-         column(width = 6,
+         column(width = 4,
          numericInput("font_size", 
-                       "Font Size (auto-adjusted smaller to fit)", 
+                       "Font Size (auto decrease)", 
                        value = 12, min = 2, max = 100)),
-         column(width = 3,
+         column(width = 2,
          selectInput(inputId = "fontfamily", 
                      label = "Font to use", 
                      choices = c(
@@ -97,23 +98,29 @@ library(barcodeLabel)
                              value = 4, min = 1, max = 100, width=NULL, step = 1))
          ),
          fluidRow(
-           column(width = 4,
+           column(width = 3,
          numericInput("barcode_height", 
                              "Barcode Height (0-1)", 
                              value = 0.5, min=0, max=1)),
-         column(width = 4,
+         column(width = 3,
          radioButtons("barcode_on_top", 
                              "1D barcode on top?", 
                              choices = c(Yes = TRUE, No = FALSE),
                              selected = TRUE, inline = TRUE)),
          column(
-           width = 4,
+           width = 3,
            radioButtons("text_align", 
                         "Text alignment", 
                         choices = c("left", "center"),
-                        selected = "center", inline = TRUE)
+                        selected = "center", inline = TRUE)),
+         column(
+           width = 3,
+           radioButtons("showborder", 
+                        "Show border?", 
+                        choices = c(Yes = TRUE, No = FALSE),
+                        selected = FALSE, inline = TRUE)
          )
-         ), width = 7
+         ), width = 8
       ),
       
       # Main panel for displaying outputs ----
@@ -142,7 +149,7 @@ library(barcodeLabel)
         tags$body("Basically, you just need to upload a comma or tab delimited text file and select the columns to make labels. For more complex label layout, please check out the "),
         tags$body(" R package "),
         tags$a('"barcode_labels"', href="https://github.com/pinbo/barcodeLabel"),
-        width = 5
+        width = 4
       )
     )
   )
@@ -162,16 +169,18 @@ library(barcodeLabel)
     # select column to make labels
     # Dynamically generate UI input when data is uploaded ----
     output$select_column <- renderUI({
+      cc = ncol(Labels_pdf())
       selectInput(inputId = "barcode_var", label = "2. Choose the variable for creating barcode", 
-                  choices = names(Labels_pdf()), multiple=FALSE)
+                  choices = names(Labels_pdf())[-cc], multiple=FALSE)
     })
     
     # add text
     output$add_text <- renderUI({
+      cc = ncol(Labels_pdf())
       fluidRow(
         column( width = 4, textInput("prefix",  "Text Prefix", value = "")  ),
         column( width = 4, selectInput( inputId = "variable", label   = "Variable to add",
-            choices = c("Choose" = "", names(Labels_pdf()))   )
+            choices = c("Choose" = "", names(Labels_pdf())[-cc])   )
         ),
         column(
           width = 4, radioButtons("newline", "Add line break?", choices = c(Yes = "\n", No = ""), selected = "\n", inline = T)
@@ -283,7 +292,7 @@ library(barcodeLabel)
         label_number = nrow(mydata()), # how many labels to print
         name = input$filename, # pdf output file name
         fontfamily = input$fontfamily, # "mono", "sans", "serif"
-        showborder = F, # whether to show border of labels
+        showborder = input$showborder, # whether to show border of labels
         vp_list = tmp_label_list()$vp_list,
         content_list = tmp_label_list()$content_list,
         numrow = input$numrow, 
