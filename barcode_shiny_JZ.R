@@ -29,6 +29,7 @@ library(barcodeLabel)
          p(strong("3. Custom text (can add multiple times)")),
          uiOutput("add_text"),
          actionButton("textBn", "Add/append text"),
+         actionButton("undo_once", "Undo once"),
          actionButton("reset_text", "Reset text"),
          p(strong("4. (Optional) Modify PDF from default values")),
          fluidRow(
@@ -37,7 +38,7 @@ library(barcodeLabel)
            column(width = 3,
          selectInput("type","Barcode Type", 
                       choices = list("Linear (1D)" = "linear",
-                                     "Matrix (2D)" = "matrix"),
+                                     "QR (2D)" = "matrix"),
                       multiple = FALSE)),
          column(width = 4,
          numericInput("font_size", 
@@ -52,10 +53,19 @@ library(barcodeLabel)
                        "serif"= "serif"),
                      multiple=FALSE))
          ),
-        selectInput(
-          inputId = "label_type",
-          label   = "Preset Label Type (you can customize parameters below)",
-          c('Avery 5967 (0.5" x 1.75")' = "avery5967", 'Avery 5960 (1.0" x 2.63")' = "avery5960")
+        fluidRow(
+          column(width = 7,
+            selectInput(
+              inputId = "label_type",
+              label   = "Preset Label Type (you can customize parameters below)",
+              c('Avery 5967 (0.5" x 1.75")' = "avery5967", 'Avery 5960 (1.0" x 2.63")' = "avery5960")
+            )),
+          column(width = 5,
+           selectInput(
+             inputId = "ecl",
+             label   = "Error correction level for QR codes",
+             c("Low (7%)" = 1, "Medium (15%)" = 2," Quantile (25%)" = 3, "High (30%)"=4), selected = 2
+           ))
         ),
          fluidRow(
            column(width = 3,
@@ -148,7 +158,7 @@ library(barcodeLabel)
         br(),br(),
         tags$body("Basically, you just need to upload a comma or tab delimited text file and select the columns to make labels. For more complex label layout, please check out the "),
         tags$body(" R package "),
-        tags$a('"barcode_labels"', href="https://github.com/pinbo/barcodeLabel"),
+        tags$a('"barcodeLabels"', href="https://github.com/pinbo/barcodeLabel"),
         width = 4
       )
     )
@@ -162,6 +172,7 @@ library(barcodeLabel)
       req(input$labels)
       df<-read.csv(input$labels$datapath, header=input$header, stringsAsFactors = FALSE, sep = input$sep)
       df$text2add = "" # add an column for text to add
+      df$tmp = "" # store last step
       mydata(df)
       df
     })
@@ -171,32 +182,57 @@ library(barcodeLabel)
     output$select_column <- renderUI({
       cc = ncol(Labels_pdf())
       selectInput(inputId = "barcode_var", label = "2. Choose the variable for creating barcode", 
-                  choices = names(Labels_pdf())[-cc], multiple=FALSE)
+                  choices = names(Labels_pdf())[-c(cc-1, cc)], multiple=FALSE)
     })
     
     # add text
     output$add_text <- renderUI({
       cc = ncol(Labels_pdf())
       fluidRow(
-        column( width = 4, textInput("prefix",  "Text Prefix", value = "")  ),
-        column( width = 4, selectInput( inputId = "variable", label   = "Variable to add",
-            choices = c("Choose" = "", names(Labels_pdf())[-cc])   )
+        column( width = 3, textInput("prefix",  "Text Prefix", value = "")  ),
+        column( width = 3, selectInput( inputId = "variable", label   = "Variable to add",
+            choices = c(Choose = "", names(Labels_pdf())[-c(cc-1, cc)])   )
         ),
         column(
-          width = 4, radioButtons("newline", "Add line break?", choices = c(Yes = "\n", No = ""), selected = "\n", inline = T)
+          width = 3, selectInput("fontface", "Font face?", choices = c(plain=1, bold=2, italic=3, boldItalic=4))
+        ),
+        column(
+          width = 3, radioButtons("newline", "Add line break?", choices = c(Yes = "\n", No = ""), selected = "", inline = T)
         )
       )
     })
     # add more text
+    resetLabelTextInput = function(){
+      # reset to all input as default
+      updateTextInput(session, "prefix",value = "")
+      updateSelectInput(session,"variable", selected="")
+      updateRadioButtons(session,"newline",selected = "")
+      updateSelectInput(session,"fontface",selected = 1)
+    }
     observeEvent(input$textBn, {
       df2 =  mydata()
-      df2$text2add <- paste0(df2$text2add, input$prefix, df2[,input$variable],input$newline)
+      fn = as.integer(input$fontface)
+      fonts = c("", "**", "*", "***")
+      df2$tmp = df2$text2add
+      if (input$variable == "")
+        df2$text2add <- paste0(df2$text2add, fonts[fn], input$prefix,fonts[fn],input$newline)
+      else
+        df2$text2add <- paste0(df2$text2add, fonts[fn], input$prefix, df2[,input$variable],fonts[fn],input$newline)
       mydata(df2)
+      resetLabelTextInput()
     })
     observeEvent(input$reset_text, {
       df2 =  mydata()
+      df2$tmp = df2$text2add
       df2$text2add <- ""
       mydata(df2)
+      resetLabelTextInput()
+    })
+    observeEvent(input$undo_once, {
+      df2 =  mydata()
+      df2$text2add = df2$tmp
+      mydata(df2)
+      resetLabelTextInput()
     })
     ## preset labels
     
@@ -246,7 +282,7 @@ library(barcodeLabel)
       barcode_on_top = input$barcode_on_top,
       barcode_height = input$barcode_height,
       barcode_type=input$type, font_size = input$font_size,
-      fontfamily = input$fontfamily)
+      fontfamily = input$fontfamily, useMarkdown = T, ecl = as.integer(input$ecl))
     })
     
     # preview label file
@@ -271,9 +307,11 @@ library(barcodeLabel)
           } else {# text
             # grid::grid.text(label = content[1])
             if (input$text_align == "left"){
-              grid::grid.text(label = content[1], x = grid::unit(0, "npc"), just = "left")
+              # grid::grid.text(label = content[1], x = grid::unit(0, "npc"), just = "left")
+              richtext(content[1], x=0, hjust=0, useMarkdown=T)
             } else {
-              grid::grid.text(label = content[1])
+              # grid::grid.text(label = content[1])
+              richtext(content[1], useMarkdown=T)
             }
           }
           grid::popViewport()
@@ -303,7 +341,8 @@ library(barcodeLabel)
         width_margin = input$width_margin, 
         label_width = input$label_width, 
         label_height = input$label_height, 
-        text_align = input$text_align # left or center
+        text_align = input$text_align, # left or center
+        useMarkdown = T
       )
       status<-"Done!"
       status
