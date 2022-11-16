@@ -1,6 +1,6 @@
 # 2022-10-25: v2: using R package barcodeLabel v0.2.0
 library(shiny)
-# if(!require(barcodeLabel)) install.packages("https://github.com/pinbo/barcodeLabel/releases/download/v0.2.0/barcodeLabel_0.2.0.tar.gz", repos = NULL)
+# devtools::install_github("pinbo/barcodeLabel")
 library(barcodeLabel)
 # UI
   ui<-fluidPage(
@@ -38,7 +38,8 @@ library(barcodeLabel)
            column(width = 3,
          selectInput("type","Barcode Type", 
                       choices = list("Linear (1D)" = "linear",
-                                     "QR (2D)" = "matrix"),
+                                     "QR Code" = "qr",
+                                     "Data Matrix" = "dm"),
                       multiple = FALSE)),
          column(width = 4,
          numericInput("font_size", 
@@ -54,18 +55,27 @@ library(barcodeLabel)
                      multiple=FALSE))
          ),
         fluidRow(
-          column(width = 7,
+          column(width = 3,
             selectInput(
               inputId = "label_type",
-              label   = "Preset Label Type (you can customize parameters below)",
+              label   = "Preset Label Type",
               c('Avery 5967 (0.5" x 1.75")' = "avery5967", 'Avery 5960 (1.0" x 2.63")' = "avery5960")
             )),
-          column(width = 5,
+          column(width = 3,
            selectInput(
              inputId = "ecl",
-             label   = "Error correction level for QR codes",
+             label   = "QR Error Correct",
              c("Low (7%)" = 1, "Medium (15%)" = 2," Quantile (25%)" = 3, "High (30%)"=4), selected = 2
-           ))
+           )),
+          column(width = 3,
+                 #sliderInput("barcode_height", label = "Barcode Height", min = 0, max = 1, value = 1)
+                 numericInput("barcode_height", 
+                              "Barcode Height (0-1)", 
+                              value = 0.5, min=0, max=1)),
+          column(width = 3,
+                 numericInput("barcode_scale", 
+                              "Barcode Scale (0-1)", 
+                              value = 1, min=0, max=1))
         ),
          fluidRow(
            column(width = 3,
@@ -108,11 +118,7 @@ library(barcodeLabel)
                              value = 4, min = 1, max = 100, width=NULL, step = 1))
          ),
          fluidRow(
-           column(width = 3,
-         numericInput("barcode_height", 
-                             "Barcode Height (0-1)", 
-                             value = 0.5, min=0, max=1)),
-         column(width = 3,
+        column(width = 3,
          radioButtons("barcode_on_top", 
                              "1D barcode on top?", 
                              choices = c(Yes = TRUE, No = FALSE),
@@ -135,11 +141,10 @@ library(barcodeLabel)
       
       # Main panel for displaying outputs ----
       mainPanel(
-        br(),
         h4(strong("Preview")),
         br(),
         plotOutput("label_preview", height = "auto", width = "auto"),
-        br(),br(),
+        br(),
         p(strong("5. Make PDF")),
         actionButton("make_pdf", "Make PDF"),
         p(strong("6. Download PDF")),
@@ -159,6 +164,14 @@ library(barcodeLabel)
         tags$body("Basically, you just need to upload a comma or tab delimited text file and select the columns to make labels. For more complex label layout, please check out the "),
         tags$body(" R package "),
         tags$a('"barcodeLabels"', href="https://github.com/pinbo/barcodeLabel"),
+        h5(strong("Notes")),
+        tags$ol(
+          tags$li("You can customize the label sizes by directly changing the parameters."), 
+          tags$li("'Barcode Height' is for whole barcode area (1 means the label height x label height square on the left)"), 
+          tags$li("'Barcode Scale' allow you to scale down the barcode plot, so you have more spaces around it."),
+          tags$li("Show border: set to YES first to see how your text fit in the label sheets. Please set to NO for the final printing file."),
+          tags$li("Please choose 'NO Scaling' or 'Actual size' when printing on a printer.")
+        ),
         width = 4
       )
     )
@@ -262,9 +275,9 @@ library(barcodeLabel)
     observeEvent(input$type, {
       if (input$type == "linear"){
         updateNumericInput(session, "barcode_height", value = 0.5)
+        updateNumericInput(session, "barcode_scale", value = 1)
         updateRadioButtons(session, "text_align", selected = "center")
-      }
-      else if (input$type == "matrix"){
+      } else {
         updateNumericInput(session, "barcode_height", value = 1)
         updateRadioButtons(session, "text_align", selected = "left")
       }
@@ -282,7 +295,7 @@ library(barcodeLabel)
       barcode_on_top = input$barcode_on_top,
       barcode_height = input$barcode_height,
       barcode_type=input$type, font_size = input$font_size,
-      fontfamily = input$fontfamily, useMarkdown = T, ecl = as.integer(input$ecl))
+      fontfamily = input$fontfamily, useMarkdown = T, ecl = as.integer(input$ecl), barcode_scale=input$barcode_scale)
     })
     
     # preview label file
@@ -357,20 +370,9 @@ library(barcodeLabel)
       filename = paste0(input$filename, ".pdf"),
       content = function(file){
         file.copy(paste0(input$filename, ".pdf"), file)
-      })
+      }
+    )
 
-    # Listen for the 'done' event. This event will be fired when a user
-    # is finished interacting with your application, and clicks the 'done'
-    # button.
-    observeEvent(input$done, {
-      
-      # Here is where your Shiny application might now go an affect the
-      # contents of a document open in RStudio, using the `rstudioapi` package.
-      #
-      # At the end, your application should call 'stopApp()' here, to ensure that
-      # the gadget is closed after 'done' is clicked.
-      stopApp()
-    })
   }
   shinyApp(ui = ui, server = server)
 
