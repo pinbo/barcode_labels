@@ -25,17 +25,14 @@ library(barcodeLabel)
          column(width = 2,
          checkboxInput("header", "Header in file?", value=TRUE))
          ),
-        p(strong("Or input manually if all labels are the same")),
+        # p(strong("Or input manually if all labels are the same")),
         fluidRow(
-          column(width = 5,
-                 textInput("simpleText", "Text for all labels (use '\\n' for line break)", value = "abc\\n123")),
+          column(width = 8,
+                 textInput("simpleText", "Or input manually if all labels are the same (use '\\n' for line break)", value = "abc\\n123")),
           column(width = 3,
                  numericInput("simpleTextRepeat", 
                               "Number of labels", 
-                              value = 4, min = 1)),
-          column(width = 2,
-                 textInput("font_col", "Text color", value = "black"))
-
+                              value = 4, min = 1))
         ),
         actionButton("createDataset", "Create Dataset"),
          # Select variables to display ----
@@ -47,27 +44,32 @@ library(barcodeLabel)
          actionButton("reset_text", "Reset text"),
          p(strong("4. (Optional) Modify PDF from default values")),
          fluidRow(
-           column(width = 3,
+           column(width = 2,
                   textInput("filename", "Output PDF name", value = "LabelsOut")),
-           column(width = 3,
+           column(width = 2,
          selectInput("type","Barcode Type", 
                       choices = list("Linear (1D)" = "linear",
                                      "QR Code" = "qr",
                                      "Data Matrix" = "dm",
                                      "No barcode (only text)" = "null"),
+                      selected = "dm",
                       multiple = FALSE)),
-         column(width = 4,
+         column(width = 2,
          numericInput("font_size", 
-                       "Font Size (auto decrease)", 
+                       "Font Size", 
                        value = 12, min = 2, max = 100)),
          column(width = 2,
          selectInput(inputId = "fontfamily", 
-                     label = "Font to use", 
+                     label = "Font", 
                      choices = c(
                        "mono" = "mono",
                        "sans"="sans",
                        "serif"= "serif"),
-                     multiple=FALSE))
+                     multiple=FALSE)),
+         column(width = 2,
+                textInput("font_col", "Text color", value = "black")),
+         column(
+           width = 2, selectInput("fontface0", "Font face overall", choices = c(plain=1, bold=2, italic=3, boldItalic=4)))
          ),
         fluidRow(
           column(width = 3,
@@ -86,7 +88,7 @@ library(barcodeLabel)
                  #sliderInput("barcode_height", label = "Barcode Height", min = 0, max = 1, value = 1)
                  numericInput("barcode_height", 
                               "Barcode Height (0-1)", 
-                              value = 0.5, min=0, max=1)),
+                              value = 1, min=0, max=1)),
           column(width = 3,
                  numericInput("barcode_scale", 
                               "Barcode Scale (0-1)", 
@@ -254,7 +256,7 @@ library(barcodeLabel)
             choices = c(Choose = "", names(mydata())[-c(cc-1, cc)])   )
         ),
         column(
-          width = 3, selectInput("fontface", "Font face?", choices = c(plain=1, bold=2, italic=3, boldItalic=4))
+          width = 3, selectInput("fontface", "Font face", choices = c(plain=1, bold=2, italic=3, boldItalic=4))
         ),
         column(
           width = 3, radioButtons("newline", "Add line break?", choices = c(Yes = "\n", No = ""), selected = "", inline = T)
@@ -359,7 +361,8 @@ library(barcodeLabel)
       fontfamily = input$fontfamily, useMarkdown = T, 
       ecl = as.integer(input$ecl), 
       barcode_scale=input$barcode_scale,
-      font_col = input$font_col)
+      font_col = input$font_col,
+      fontface = as.integer(input$fontface0))
     })
     
     # preview label file
