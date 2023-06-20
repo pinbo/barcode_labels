@@ -351,8 +351,8 @@ library(barcodeLabel)
       req(mydata())
     # 1. create simple element layout on each label
     simple_label_layout(
-      barcode_text=mydata()[,input$barcode_var],
-      print_text = mydata()[,"text2add"],
+      barcode_text=mydata()[1,input$barcode_var],
+      print_text = mydata()[1,"text2add"],
       label_width = input$label_width,
       label_height = input$label_height,
       barcode_on_top = input$barcode_on_top,
@@ -411,14 +411,28 @@ library(barcodeLabel)
     )
     # text indicator that pdf finished making
     PDF_done<-eventReactive(input$make_pdf, {
+      # 1. create simple element layout on each label
+      label_list = simple_label_layout(
+        barcode_text=mydata()[,input$barcode_var],
+        print_text = mydata()[,"text2add"],
+        label_width = input$label_width,
+        label_height = input$label_height,
+        barcode_on_top = input$barcode_on_top,
+        barcode_height = input$barcode_height,
+        barcode_type=input$type, font_size = input$font_size,
+        fontfamily = input$fontfamily, useMarkdown = T, 
+        ecl = as.integer(input$ecl), 
+        barcode_scale=input$barcode_scale,
+        font_col = input$font_col,
+        fontface = as.integer(input$fontface0))
       make_custom_label(
         label_number = nrow(mydata()), # how many labels to print
         name = input$filename, # pdf output file name
         fontfamily = input$fontfamily, # "mono", "sans", "serif"
         showborder = input$showborder, # whether to show border of labels
         border_type = input$border_type,
-        vp_list = tmp_label_list()$vp_list,
-        content_list = tmp_label_list()$content_list,
+        vp_list = label_list$vp_list,
+        content_list = label_list$content_list,
         numrow = input$numrow, 
         numcol = input$numcol, 
         page_width = input$page_width, 
