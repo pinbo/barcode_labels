@@ -121,7 +121,7 @@ const interactable = interact('.resize-drag')
 interactable
   .resizable({
     // resize from all edges and corners
-    edges: { left: true, right: true, bottom: true, top: true },
+    edges: { left: false, right: true, bottom: true, top: false },
 
     listeners: {
       move (event) {

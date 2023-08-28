@@ -7,12 +7,11 @@ plotbarcode = function(text, barcode_type=c("linear", "qr", "dm")){
   if (barcode_type=="linear") code = code_128_make(text)
   else if (barcode_type=="qr")  code = qrcode_make(text, 3)
   else if (barcode_type=="dm") code = dmcode_make(text)
-  # else {stop("Barcode type must be linear, qr or dm")}
   else code = grid::textGrob(text)
   grid::grid.draw(code)
 }
 # UI
-ui<-fluidPage(
+ui <- fluidPage(
   tags$head(
     tags$link(rel = "stylesheet", type = "text/css", href = "label_design.css")
   ),
@@ -49,37 +48,33 @@ ui<-fluidPage(
       ),
       actionButton("createDataset", "Create Dataset"),
       # Select variables to display ----
-      uiOutput("select_column"),
-      p(strong("3. Custom text (can add multiple times)")),
+      # uiOutput("select_column"),
+      p(strong("2. Custom text (can add multiple times)")),
       uiOutput("add_text"),
       actionButton("textBn", "Add/append text"),
       actionButton("undo_once", "Undo once"),
       actionButton("reset_text", "Reset text"),
-      # br(),
       p("New variable preview:"),
-      # uiOutput("preview_new_var"),
       textOutput("preview_new_var"),
       actionButton("make_new_var", "Finish"),
       # design label
-      p(strong("4. Design label")),
+      p(strong("3. Design label")),
       withTags({
         div(
-          div(id="drawing-area", class="grid" ),
+          div(id="drawing-area", class="grid" )
         )
       }),
       uiOutput("select_content"),
-      p(strong("5. (Optional) Modify PDF from default values")),
+      p(strong("4. (Optional) Modify PDF from default values")),
       fluidRow(
         column(width = 2,
                textInput("filename", "Output PDF name", value = "LabelsOut")),
-        column(width = 2,
-               selectInput("type","Barcode Type", 
-                           choices = list("Linear (1D)" = "linear",
-                                          "QR Code" = "qr",
-                                          "Data Matrix" = "dm",
-                                          "No barcode (only text)" = "null"),
-                           selected = "dm",
-                           multiple = FALSE)),
+        column(width = 3,
+               selectInput(
+                 inputId = "label_type",
+                 label   = "Preset Label Type",
+                 c('Avery 5967 (0.5" x 1.75")' = "avery5967", 'Avery 5960 (1.0" x 2.63")' = "avery5960", 'Tough Spots 3/8in' = 'Tough-Spots-3/8in')
+               )),
         column(width = 2,
                numericInput("font_size", 
                             "Font Size", 
@@ -91,36 +86,18 @@ ui<-fluidPage(
                              "mono" = "mono",
                              "sans"="sans",
                              "serif"= "serif"),
-                           multiple=FALSE)),
-        column(width = 2,
-               textInput("font_col", "Text color", value = "black")),
-        column(
-          width = 2, selectInput("fontface0", "Font face overall", choices = c(plain=1, bold=2, italic=3, boldItalic=4)))
+                           multiple=FALSE))
       ),
       fluidRow(
         column(width = 3,
-               selectInput(
-                 inputId = "label_type",
-                 label   = "Preset Label Type",
-                 c('Avery 5967 (0.5" x 1.75")' = "avery5967", 'Avery 5960 (1.0" x 2.63")' = "avery5960", 'Tough Spots 3/8in' = 'Tough-Spots-3/8in')
-               )),
+               numericInput("width_margin", 
+                            "Side margin (in)", 
+                            value = 0.3, 
+                            min = 0, max = 20, width=NULL, step = 0.05)),
         column(width = 3,
-               selectInput(
-                 inputId = "ecl",
-                 label   = "QR Error Correct",
-                 c("Low (7%)" = 1, "Medium (15%)" = 2," Quantile (25%)" = 3, "High (30%)"=4), selected = 2
-               )),
-        column(width = 3,
-               #sliderInput("barcode_height", label = "Barcode Height", min = 0, max = 1, value = 1)
-               numericInput("barcode_height", 
-                            "Barcode Height (0-1)", 
-                            value = 1, min=0, max=1)),
-        column(width = 3,
-               numericInput("barcode_scale", 
-                            "Barcode Scale (0-1)", 
-                            value = 1, min=0, max=1))
-      ),
-      fluidRow(
+               numericInput("height_margin", 
+                            "Top margin (in)", 
+                            value = 0.5, min = 0, max = 20, width=NULL, step = 0.05)),
         column(width = 3,
                numericInput("page_width", 
                             "Page Width (in)", 
@@ -130,17 +107,7 @@ ui<-fluidPage(
                numericInput("page_height", 
                             "Page Height (in)", 
                             value = 11, 
-                            min = 1, max = 20, width=NULL, step = 0.5)),
-        
-        column(width = 3,
-               numericInput("width_margin", 
-                            "Side margin (in)", 
-                            value = 0.3, 
-                            min = 0, max = 20, width=NULL, step = 0.05)),
-        column(width = 3,
-               numericInput("height_margin", 
-                            "Top margin (in)", 
-                            value = 0.5, min = 0, max = 20, width=NULL, step = 0.05))
+                            min = 1, max = 20, width=NULL, step = 0.5))
       ),
       fluidRow(
         column(width = 3,
@@ -161,11 +128,6 @@ ui<-fluidPage(
                             value = 4, min = 1, max = 100, width=NULL, step = 1))
       ),
       fluidRow(
-        column(width = 3,
-               radioButtons("barcode_on_top", 
-                            "1D barcode on top?", 
-                            choices = c(Yes = TRUE, No = FALSE),
-                            selected = TRUE, inline = TRUE)),
         column(
           width = 3,
           radioButtons("text_align", 
@@ -265,15 +227,6 @@ server <- function(input, output, session) {
     }
   })
   
-  
-  # select column to make labels
-  # Dynamically generate UI input when data is uploaded ----
-  output$select_column <- renderUI({
-    cc = ncol(rawdata())
-    selectInput(inputId = "barcode_var", label = "2. Choose the variable for creating barcode", 
-                # choices = names(mydata())[-c(cc-1, cc)], multiple=FALSE) 
-                choices = names(rawdata()), multiple=FALSE)
-  })
   # for manual layout
   output$select_content <- renderUI({
     df = mydata()
@@ -297,8 +250,8 @@ server <- function(input, output, session) {
            selectInput(inputId = "input_var_fontfamily", 
                        label = "Font", 
                        choices = c(
-                         "sans"="sans-serif",
-                         "serif"= "serif",
+                         "sans"="sans",
+                         "serif"= "sans-serif",
                          "monospace" = "monospace"),
                        multiple=FALSE)),
     column(width = 2,
@@ -313,9 +266,6 @@ server <- function(input, output, session) {
   # add text
   output$add_text <- renderUI({
     cc = ncol(rawdata())
-    # fluidRow(
-    #   column( width = 3, textInput("newvar",  "New variable name", value = "var1")  )
-    # )
     fluidRow(
       column( width = 2, textInput("newvar",  "New variable name", value = "var1")  ),
       column( width = 2, textInput("prefix",  "Text Prefix", value = "")  ),
@@ -380,55 +330,38 @@ server <- function(input, output, session) {
       updateNumericInput(session, "numcol", value = 4)
       updateNumericInput(session, "page_width", value = 8.5)
       updateNumericInput(session, "page_height", value = 11)
-      updateNumericInput(session, "width_margin", value = 0.3)
-      updateNumericInput(session, "height_margin", value = 0.5)
       updateNumericInput(session, "label_width", value = 1.75)
       updateNumericInput(session, "label_height", value = 0.5)
+      updateNumericInput(session, "width_margin", value = 0.3)
+      updateNumericInput(session, "height_margin", value = 0.5)
     }
     else if (input$label_type == "avery5960"){
       updateNumericInput(session, "numrow", value = 10)
       updateNumericInput(session, "numcol", value = 3)
       updateNumericInput(session, "page_width", value = 8.5)
       updateNumericInput(session, "page_height", value = 11)
-      updateNumericInput(session, "width_margin", value = 0.19)
-      updateNumericInput(session, "height_margin", value = 0.5)
       updateNumericInput(session, "label_width", value = 2.63)
       updateNumericInput(session, "label_height", value = 1.0)
+      updateNumericInput(session, "width_margin", value = 0.3)
+      updateNumericInput(session, "height_margin", value = 0.5)
     }
     else if (input$label_type == "Tough-Spots-3/8in"){
       updateNumericInput(session, "numrow", value = 16)
       updateNumericInput(session, "numcol", value = 12)
       updateNumericInput(session, "page_width", value = 8.4375)
       updateNumericInput(session, "page_height", value = 11)
-      updateNumericInput(session, "width_margin", value = 0.5625)
-      updateNumericInput(session, "height_margin", value = 0.58)
       updateNumericInput(session, "label_width", value = 0.375)
       updateNumericInput(session, "label_height", value = 0.375)
+      updateNumericInput(session, "width_margin", value = 0.3)
+      updateNumericInput(session, "height_margin", value = 0.5)
       updateNumericInput(session, "font_size", value = 10)
       updateRadioButtons(session, "text_align", selected = "center")
       updateRadioButtons(session, "border_type", selected = "circle")
       updateSelectInput(session, "type", selected = "null")
     }
   }, ignoreInit = TRUE)
-  # set text alignment and barcode height based on barcode type selection
-  observeEvent(input$type, {
-    if (input$type == "linear" | input$type == "null"){
-      updateNumericInput(session, "barcode_height", value = 0.5)
-      updateNumericInput(session, "barcode_scale", value = 1)
-      updateRadioButtons(session, "text_align", selected = "center")
-    } else {
-      updateNumericInput(session, "barcode_height", value = 1)
-      updateRadioButtons(session, "text_align", selected = "left")
-    }
-  }, ignoreInit = TRUE)
-  
-  # vp_list and content_list from manually adjusted layout
-  # content_list = list()
-  # vp_list = list()
-  # observeEvent(input$sizeInfo, {
-  #   ss = input$sizeInfo
-  #   vp_list[[ss$id]] = grid::viewport(x = ss$x, y = ss$y, width = ss$width, height = ss$height, just = c("left", "top"))
-  # })
+
+  # label only for the first row for preview
   tmp_label_list = reactive({
     req(input$sizeInfo)
     vp_list = list()
@@ -438,7 +371,7 @@ server <- function(input, output, session) {
       ss = input$contentInfo[[x]]
       ss2 = input$sizeInfo[[x]]
       if (ss$type == "text") {
-        tt = text_array_wrap(mydata()[1,ss$var], 12, ss2$width*input$label_width, ss2$height*input$label_height, input$fontfamily, useMarkdown = T)
+        tt = text_array_wrap(mydata()[1,ss$var], 12, ss2$width*input$label_width, ss2$height*input$label_height, ss$fontfamily, useMarkdown = T)
         content = tt$text
         Fsz = tt$font_size
         cat("Final Font size used is", Fsz, "\n")
@@ -468,7 +401,7 @@ server <- function(input, output, session) {
     grDevices::png(outputfile,
                    width = input$label_width,
                    height = input$label_height,
-                   units = "in", res=300, family = input$fontfamily
+                   units = "in", res=300#, family = input$fontfamily
     )
     if (input$border_type == "rectangle") grid::grid.rect()
     else if (input$border_type == "circle") grid::grid.circle(r=grid::unit(min(input$label_width, input$label_height)/2, "inches"))
@@ -519,7 +452,7 @@ server <- function(input, output, session) {
     input_type = input$input_type
     input_var = input$input_var
     outputfile <- tempfile(fileext=".png")
-    grDevices::png(outputfile, width = 2, height = 2, units = "in", res=300, family = input$fontfamily)
+    grDevices::png(outputfile, width = 2, height = 2, units = "in", res=300)#, family = input$fontfamily)
     plotbarcode(input_var, input_type)
     grDevices::dev.off()
     list(src = outputfile,
@@ -540,7 +473,7 @@ server <- function(input, output, session) {
       ss = input$contentInfo[[x]]
       ss2 = input$sizeInfo[[x]]
       if (ss$type == "text") {
-        tt = text_array_wrap(mydata()[,ss$var], 12, ss2$width*input$label_width, ss2$height*input$label_height, input$fontfamily, useMarkdown = T)
+        tt = text_array_wrap(mydata()[,ss$var], 12, ss2$width*input$label_width, ss2$height*input$label_height, ss$fontfamily, useMarkdown = T)
         content = tt$text
         Fsz = tt$font_size
         cat("Final Font size used is", Fsz, "\n")
