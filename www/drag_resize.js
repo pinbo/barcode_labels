@@ -17,13 +17,8 @@ This will cause input$foo to notify any reactive objects that depend on it, whet
 const sizeMap = new Map(); // position and size information
 const contentMap = new Map(); // size information
 
-// map to json
-function mapToJSON(map) {
-  return JSON.stringify(Object.fromEntries(map));
-}
-
-
 // get position information for a id
+// all positions and size are relative to the width and height, respectively
 function getPos(id){
   let aa = document.getElementById("drawing-area");
   let bb = document.getElementById(id);
@@ -45,8 +40,8 @@ function getPos(id){
 
 $(document).on('shiny:inputchanged', function(event) {
 	const boxA = document.getElementById("drawing-area");
-	boxA.style.height = document.getElementById("label_height").value*200 + "px";
-	boxA.style.width = document.getElementById("label_width").value*200 + "px";
+	boxA.style.height = document.getElementById("label_height").value*96*2 + "px"; // 96px is 1 inch
+	boxA.style.width = document.getElementById("label_width").value*96*2 + "px";
 	/*document.getElementById("label_height").addEventListener("input", e => {
 	  boxA.style.height = e.target.value*2 + "in";
 	});
@@ -56,7 +51,7 @@ $(document).on('shiny:inputchanged', function(event) {
 });
 
 // add new box in the label
-let idnum = 2;
+let idnum = 1;
 // add a rect box in the drawing area
 function addBox(){
   let container = document.getElementById("drawing-area");
@@ -69,7 +64,13 @@ function addBox(){
     console.log(document.getElementById("input_var").value);
     box.id = id;
     box.classList.add("resize-drag");
-    box.style.fontSize = document.getElementById("input_var_size").value + "pt";
+    box.style.fontSize = document.getElementById("input_var_size").value *96/72 + "px";//96px = 72pt= 1 inch
+    box.style.color = document.getElementById("input_var_color").value;
+    box.style.fontFamily = document.getElementById("input_var_fontfamily").value;
+    let fontface = document.getElementById("input_var_fontface").value;
+    if (fontface == 2) box.style.fontWeight = 'bold';
+    else if (fontface == 3) box.style.fontStyle = 'italic';
+    else if (fontface == 4) {box.style.fontWeight = 'bold'; box.style.fontStyle = 'italic';}
     container.appendChild(box);
   } else {
     const box = document.createElement("img");
@@ -82,7 +83,14 @@ function addBox(){
   sizeMap.set(id, getPos(id));
   var e = document.getElementById("input_var");
   var text = e.options[e.selectedIndex].text;
-  contentMap.set(id, {type: input_type, var: text})
+  let fontcolor = document.getElementById("input_var_color").value;
+  let fontfamily = document.getElementById("input_var_fontfamily").value;
+  if (fontfamily == "sans-serif") fontfamily = "serif";
+  else if (fontfamily == "monospace") fontfamily = "mono";
+  let fontface = document.getElementById("input_var_fontface").value;
+  contentMap.set(id, {type: input_type, var: text, fontcolor: fontcolor, fontfamily: fontfamily, fontface: fontface})
+  Shiny.setInputValue("sizeInfo", Object.fromEntries(sizeMap), {priority: "event"});
+  Shiny.setInputValue("contentInfo", Object.fromEntries(contentMap), {priority: "event"});
 }
 /*
 $(document).on('shiny:inputchanged', function(event) {
@@ -103,8 +111,6 @@ $(document).on('shiny:inputchanged', function(event) {
 function sendSize (event) {
   var target = event.target
   sizeMap.set(target.id, getPos(target.id));//update the position information before sending
-  // Shiny.setInputValue("sizeInfo", mapToJSON(sizeMap), {priority: "event"});
-  // Shiny.setInputValue("contentInfo", mapToJSON(contentMap), {priority: "event"});
   Shiny.setInputValue("sizeInfo", Object.fromEntries(sizeMap), {priority: "event"});
   Shiny.setInputValue("contentInfo", Object.fromEntries(contentMap), {priority: "event"});
 }
@@ -115,7 +121,7 @@ const interactable = interact('.resize-drag')
 interactable
   .resizable({
     // resize from all edges and corners
-    edges: { left: false, right: true, bottom: true, top: false },
+    edges: { left: true, right: true, bottom: true, top: true },
 
     listeners: {
       move (event) {
@@ -178,6 +184,8 @@ interactable
     // remove keys
     sizeMap.delete(evt.target.id);
     contentMap.delete(evt.target.id);
+    Shiny.setInputValue("sizeInfo", Object.fromEntries(sizeMap), {priority: "event"});
+    Shiny.setInputValue("contentInfo", Object.fromEntries(contentMap), {priority: "event"});
 })
 
 

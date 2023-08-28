@@ -48,16 +48,6 @@ ui<-fluidPage(
                             value = 4, min = 1))
       ),
       actionButton("createDataset", "Create Dataset"),
-      # design label
-      withTags({
-        div(
-            p("Design label"),
-            div(id="drawing-area", class="grid"#,div(class="resize-drag", id="rec1", "Resize from bottom right edges/corner")
-                ),
-        )
-      }),
-      uiOutput("select_content"),
-      uiOutput("boxlist"),
       # Select variables to display ----
       uiOutput("select_column"),
       p(strong("3. Custom text (can add multiple times)")),
@@ -65,7 +55,20 @@ ui<-fluidPage(
       actionButton("textBn", "Add/append text"),
       actionButton("undo_once", "Undo once"),
       actionButton("reset_text", "Reset text"),
-      p(strong("4. (Optional) Modify PDF from default values")),
+      # br(),
+      p("New variable preview:"),
+      # uiOutput("preview_new_var"),
+      textOutput("preview_new_var"),
+      actionButton("make_new_var", "Finish"),
+      # design label
+      p(strong("4. Design label")),
+      withTags({
+        div(
+          div(id="drawing-area", class="grid" ),
+        )
+      }),
+      uiOutput("select_content"),
+      p(strong("5. (Optional) Modify PDF from default values")),
       fluidRow(
         column(width = 2,
                textInput("filename", "Output PDF name", value = "LabelsOut")),
@@ -205,9 +208,9 @@ ui<-fluidPage(
       br(),
       plotOutput("barcode_preview", height = "auto", width = "auto"),
       br(),
-      p(strong("5. Make PDF")),
+      p(strong("6. Make PDF")),
       actionButton("make_pdf", "Make PDF"),
-      p(strong("6. Download PDF")),
+      p(strong("7. Download PDF")),
       tags$body("Wait for 'Done' to show up before downloading PDF file"),
       br(),
       downloadButton('download', 'Download PDF'),
@@ -273,36 +276,54 @@ server <- function(input, output, session) {
   })
   # for manual layout
   output$select_content <- renderUI({
-    df = rawdata()
-    data_choices = as.list(df[1,])
+    df = mydata()
+    cc = ncol(rawdata())
+    data_choices = as.list(df[1,-c(cc+1, cc+2)])
+    tagList(
     fluidRow(
-      column(width = 3, 
+      column(width = 2, 
     selectInput("input_type","Input Type", 
                 choices = list("Linear (1D)" = "linear",
                                "QR Code" = "qr",
                                "Data Matrix" = "dm",
                                "Text" = "text"),
                 selected = "dm", multiple = FALSE)),
-    column(width = 3, 
+    column(width = 2, 
       selectInput(inputId = "input_var", label = "Input variable", 
                 choices = data_choices, multiple=FALSE)),
-    column(width = 3, 
-           numericInput(inputId = "input_var_size", label = "Font size (pt)",value = 12, min = 0.1)),
-    column(width = 3, 
-           actionButton("addButton", "Add", onClick="addBox()"))
+    column(width = 2, 
+           numericInput(inputId = "input_var_size", label = "Font size (pt)",value = 8, min = 1)),
+    column(width = 2,
+           selectInput(inputId = "input_var_fontfamily", 
+                       label = "Font", 
+                       choices = c(
+                         "sans"="sans-serif",
+                         "serif"= "serif",
+                         "monospace" = "monospace"),
+                       multiple=FALSE)),
+    column(width = 2,
+           textInput("input_var_color", "Text color", value = "black")),
+    column(
+      width = 2, selectInput("input_var_fontface", "Font face", choices = c(plain=1, bold=2, italic=3, boldItalic=4)))
+    ),
+    actionButton("addButton", "Add", onClick="addBox()")
     )
   })
   
   # add text
   output$add_text <- renderUI({
-    cc = ncol(mydata())
+    cc = ncol(rawdata())
+    # fluidRow(
+    #   column( width = 3, textInput("newvar",  "New variable name", value = "var1")  )
+    # )
     fluidRow(
-      column( width = 3, textInput("prefix",  "Text Prefix", value = "")  ),
+      column( width = 2, textInput("newvar",  "New variable name", value = "var1")  ),
+      column( width = 2, textInput("prefix",  "Text Prefix", value = "")  ),
       column( width = 3, selectInput( inputId = "variable", label   = "Variable to add",
-                                      choices = c(Choose = "", names(mydata())[-c(cc-1, cc)])   )
+                                      choices = c(Choose = "", names(mydata())[-c(cc+1, cc+2)])   )
       ),
       column(
-        width = 3, selectInput("fontface", "Font face", choices = c(plain=1, bold=2, italic=3, boldItalic=4))
+        width = 2, selectInput("fontface", "Font face", choices = c(plain=1, bold=2, italic=3, boldItalic=4))
       ),
       column(
         width = 3, radioButtons("newline", "Add line break?", choices = c(Yes = "\n", No = ""), selected = "", inline = T)
@@ -326,6 +347,7 @@ server <- function(input, output, session) {
       df2$text2add <- paste0(df2$text2add, fonts[fn], input$prefix,fonts[fn],input$newline)
     else
       df2$text2add <- paste0(df2$text2add, fonts[fn], input$prefix, df2[,input$variable],fonts[fn],input$newline)
+    df2[[input$newvar]]=df2$text2add
     mydata(df2)
     resetLabelTextInput()
   })
@@ -339,6 +361,14 @@ server <- function(input, output, session) {
   observeEvent(input$undo_once, {
     df2 =  mydata()
     df2$text2add = df2$tmp
+    mydata(df2)
+    resetLabelTextInput()
+  })
+  observeEvent(input$make_new_var, {
+    df2 =  mydata()
+    df2[[input$newvar]]=df2$text2add
+    df2$text2add = ""
+    df2$tmp = ""
     mydata(df2)
     resetLabelTextInput()
   })
@@ -412,7 +442,7 @@ server <- function(input, output, session) {
         content = tt$text
         Fsz = tt$font_size
         cat("Final Font size used is", Fsz, "\n")
-        vp = grid::viewport(x = ss2$x, y = 1-ss2$y, width = ss2$width, height = ss2$height, just = c("left", "top"), gp=grid::gpar(fontsize = Fsz, lineheight = 0.8, fontfamily=input$fontfamily))
+        vp = grid::viewport(x = ss2$x, y = 1-ss2$y, width = ss2$width, height = ss2$height, just = c("left", "top"), gp=grid::gpar(fontsize = Fsz, lineheight = 0.8, fontfamily=ss$fontfamily, fontface=as.numeric(ss$fontface), col=ss$fontcolor))
         vp_list[[x]] = vp
         content_list[[x]] = content
       } else {
@@ -452,6 +482,7 @@ server <- function(input, output, session) {
         vp = vp_list[[j]]
         content = content_list[[j]]
         grid::pushViewport(vp)
+        if (input$showborder) grid::grid.rect()
         cat("fontsize used is", grid::get.gpar()$fontsize, "\n")
         if (class(content) == "list") {# grob list
           grid::grid.draw(content[[1]])
@@ -475,69 +506,12 @@ server <- function(input, output, session) {
          alt = "Label Preview")
   }, deleteFile = TRUE
   )
-  # dataset for drawing
-  # tmp_label_list <-reactive({
-  #   req(mydata())
-  #   # 1. create simple element layout on each label
-  #   simple_label_layout(
-  #     barcode_text=mydata()[1,input$barcode_var],
-  #     print_text = mydata()[1,"text2add"],
-  #     label_width = input$label_width,
-  #     label_height = input$label_height,
-  #     barcode_on_top = input$barcode_on_top,
-  #     barcode_height = input$barcode_height,
-  #     barcode_type=input$type, font_size = input$font_size,
-  #     fontfamily = input$fontfamily, useMarkdown = T, 
-  #     ecl = as.integer(input$ecl), 
-  #     barcode_scale=input$barcode_scale,
-  #     font_col = input$font_col
-  #     )
-  # })
-  
-  # # preview label file
-  # output$label_preview <- renderImage({
-  #   vp_list = tmp_label_list()$vp_list
-  #   content_list = tmp_label_list()$content_list
-  #   outputfile <- tempfile(fileext=".png")
-  #   grDevices::png(outputfile,
-  #                  width = input$label_width,
-  #                  height = input$label_height,
-  #                  units = "in", res=300, family = input$fontfamily
-  #   )
-  #   if (input$border_type == "rectangle") grid::grid.rect()
-  #   else if (input$border_type == "circle") grid::grid.circle(r=grid::unit(min(input$label_width, input$label_height)/2, "inches"))
-  #   else{# both
-  #     grid::grid.rect()
-  #     grid::grid.circle(r=grid::unit(min(input$label_width, input$label_height)/2, "inches"))
-  #   }
-  #   
-  #   if (length(vp_list) > 0){
-  #     for (j in 1:length(vp_list)){
-  #       vp = vp_list[[j]]
-  #       content = content_list[[j]]
-  #       grid::pushViewport(vp)
-  #       if (class(content) == "list") {# grob list
-  #         grid::grid.draw(content[[1]])
-  #       } else {# text
-  #         # grid::grid.text(label = content[1])
-  #         if (input$text_align == "left"){
-  #           # grid::grid.text(label = content[1], x = grid::unit(0, "npc"), just = "left")
-  #           richtext(content[1], x=0, hjust=0, useMarkdown=T)
-  #         } else {
-  #           # grid::grid.text(label = content[1])
-  #           richtext(content[1], useMarkdown=T)
-  #         }
-  #       }
-  #       grid::popViewport()
-  #     }
-  #   }
-  #   grDevices::dev.off()
-  #   list(src = outputfile,
-  #        width = 100 * input$label_width, 
-  #        height = 100 * input$label_height,
-  #        alt = "Label Preview")
-  # }, deleteFile = TRUE
-  # )
+
+  # new variable preview
+  output$preview_new_var<-renderPrint({
+    req(mydata())
+    cat("\n",mydata()[1,"text2add"],"\n")
+  })
   
   ## barcode preview
   output$barcode_preview <- renderImage({
@@ -559,19 +533,31 @@ server <- function(input, output, session) {
   # text indicator that pdf finished making
   PDF_done<-eventReactive(input$make_pdf, {
     # 1. create simple element layout on each label
-    label_list = simple_label_layout(
-      barcode_text=mydata()[,input$barcode_var],
-      print_text = mydata()[,"text2add"],
-      label_width = input$label_width,
-      label_height = input$label_height,
-      barcode_on_top = input$barcode_on_top,
-      barcode_height = input$barcode_height,
-      barcode_type=input$type, font_size = input$font_size,
-      fontfamily = input$fontfamily, useMarkdown = T, 
-      ecl = as.integer(input$ecl), 
-      barcode_scale=input$barcode_scale,
-      font_col = input$font_col,
-      fontface = as.integer(input$fontface0))
+    vp_list = list()
+    content_list = list()
+    nms = names(input$sizeInfo)
+    for (x in nms){
+      ss = input$contentInfo[[x]]
+      ss2 = input$sizeInfo[[x]]
+      if (ss$type == "text") {
+        tt = text_array_wrap(mydata()[,ss$var], 12, ss2$width*input$label_width, ss2$height*input$label_height, input$fontfamily, useMarkdown = T)
+        content = tt$text
+        Fsz = tt$font_size
+        cat("Final Font size used is", Fsz, "\n")
+        vp = grid::viewport(x = ss2$x, y = 1-ss2$y, width = ss2$width, height = ss2$height, just = c("left", "top"), gp=grid::gpar(fontsize = Fsz, lineheight = 0.8, fontfamily=ss$fontfamily, fontface=as.numeric(ss$fontface), col=ss$fontcolor))
+        vp_list[[x]] = vp
+        content_list[[x]] = content
+      } else {
+        vp = grid::viewport(x = ss2$x, y = 1-ss2$y, width = ss2$width, height = ss2$height, just = c("left", "top"))
+        if (ss$type == "dm") content = lapply(as.character(mydata()[,ss$var]), dmcode_make)
+        else if(ss$type == "qr") content = lapply(as.character(mydata()[,ss$var]), qrcode_make)
+        else if(ss$type == "linear") content = lapply(as.character(mydata()[,ss$var]), code_128_make)
+        vp_list[[x]] = vp
+        content_list[[x]] = content
+      }
+    }
+    label_list = list(vp_list=vp_list, content_list=content_list)
+
     make_custom_label(
       label_number = nrow(mydata()), # how many labels to print
       name = input$filename, # pdf output file name
