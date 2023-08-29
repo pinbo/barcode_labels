@@ -364,6 +364,7 @@ server <- function(input, output, session) {
   # label only for the first row for preview
   tmp_label_list = reactive({
     req(input$sizeInfo)
+    pdf(file=NULL)
     vp_list = list()
     content_list = list()
     nms = names(input$sizeInfo)
@@ -387,6 +388,7 @@ server <- function(input, output, session) {
         content_list[[x]] = content
       }
     }
+    dev.off()
     cat("vp_list length:", length(vp_list),"\n")
     cat("content_list length:", length(content_list),"\n")
     print(vp_list)
@@ -469,6 +471,7 @@ server <- function(input, output, session) {
     vp_list = list()
     content_list = list()
     nms = names(input$sizeInfo)
+    pdf(file=NULL)
     for (x in nms){
       ss = input$contentInfo[[x]]
       ss2 = input$sizeInfo[[x]]
@@ -489,6 +492,7 @@ server <- function(input, output, session) {
         content_list[[x]] = content
       }
     }
+    dev.off()
     label_list = list(vp_list=vp_list, content_list=content_list)
 
     make_custom_label(
