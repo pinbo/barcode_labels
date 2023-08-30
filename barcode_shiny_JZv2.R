@@ -534,13 +534,20 @@ server <- function(input, output, session) {
   
   # R code for reproducing in R
   # 1. read or create dataset
-  csv_code_snippet <- reactive({noquote(
-    paste0(
+  csv_code_snippet <- reactive({noquote({
+    if(length(input$labels$name)==0) paste0(
+      "# create simple repeated data\n",
+        'tt = "', input$simpleText, '"',
+        '\ndf = data.frame(label=rep(tt,', input$simpleTextRepeat, '))'
+      )
+    else paste0(
       "df <- read.csv( \'", input$labels$name, 
       "\', header = ", input$header, 
       ", sep = '", gsub('\t','\\t', input$sep, fixed=T),
       "', stringsAsFactors = FALSE)"
-    ))})
+    )
+    })
+    })
   
   create_data_snippet <- reactive({noquote(
     paste0(
@@ -551,6 +558,7 @@ server <- function(input, output, session) {
   # get the view port settings and contents
   vp_snippet <- reactive({
     rr = paste(
+      "\n# create layouts on the label",
       "vp_list = list()",
       "content_list = list()",
       "pdf(file=NULL)", sep="\n"
@@ -593,7 +601,9 @@ server <- function(input, output, session) {
   # make pdf code
   PDF_code_snippet<-shiny::reactive({
     noquote(
-      paste0("make_custom_label(",
+      paste0(
+        "\n# Make pdf with labels\n",
+        "make_custom_label(",
              "label_number = ", nrow(mydata()),
              ",\nname = '", input$filename,
              "',\nfontfamily = '", input$fontfamily,
