@@ -231,7 +231,8 @@ server <- function(input, output, session) {
   output$select_content <- renderUI({
     df = mydata()
     cc = ncol(rawdata())
-    data_choices = as.list(df[1,-c(cc+1, cc+2)])
+    data_choices = as.list(df[1,])[-c(cc+1, cc+2)]
+    print(data_choices)
     tagList(
     fluidRow(
       column(width = 2, 
@@ -571,7 +572,7 @@ server <- function(input, output, session) {
       if (ss$type == "text") {
         rr = paste(
           rr,
-          paste0('tt = text_array_wrap(df$', ss$var,', 12, ', round(ss2$width*input$label_width,3), ',', round(ss2$height*input$label_height,3), ',', ss$fontfamily, ', useMarkdown = T)'),
+          paste0('tt = text_array_wrap(df$', ss$var,', 12, ', round(ss2$width*input$label_width,3), ',', round(ss2$height*input$label_height,3), ',"', ss$fontfamily, '", useMarkdown = T)'),
           'content = tt$text',
           'Fsz = tt$font_size',
           paste0('vp = grid::viewport(x = ', round(ss2$x,3), ', y = ', round(1-ss2$y,3), ', width = ', round(ss2$width,3), ', height = ', round(ss2$height,3), ', just = c("left", "top"), gp=grid::gpar(fontsize = Fsz, lineheight = 0.8, fontfamily="', ss$fontfamily, '", fontface=', ss$fontface, ', col="', ss$fontcolor,'"))'),
@@ -628,8 +629,10 @@ server <- function(input, output, session) {
     )
   })
   
+  # library
+  loadlib = '# need R library barcodeLabel, to install:\n# devtools::install_github("pinbo/barcodeLabel")\nlibrary(barcodeLabel)'
   output$rcode <- shiny::renderText({
-    paste(csv_code_snippet(), vp_snippet(), PDF_code_snippet(), sep = "\n")
+    paste(loadlib, csv_code_snippet(), vp_snippet(), PDF_code_snippet(), sep = "\n")
   })
 }
 shinyApp(ui = ui, server = server)
