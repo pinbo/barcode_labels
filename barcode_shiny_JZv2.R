@@ -178,11 +178,13 @@ ui <- fluidPage(
       downloadButton('download', 'Download PDF'),
       # status of pdf making
       textOutput("PDF_status"),
+      h4(strong("Reproducible Code")),
+      verbatimTextOutput("rcode"),
       br(),
       br(),
       h4(strong("Help")),
       tags$body("This is a shiny application for R package "),
-      tags$a('"barcode_labels"', href="https://github.com/pinbo/barcodeLabel"),
+      tags$a('"barcodeLabel"', href="https://github.com/pinbo/barcodeLabel"),
       tags$body(". The Shiny R script is here:"),
       tags$a("https://github.com/pinbo/barcode_labels", href="https://github.com/pinbo/barcode_labels"),
       br(),br(),
@@ -192,8 +194,6 @@ ui <- fluidPage(
       h5(strong("Notes")),
       tags$ol(
         tags$li("You can customize the label sizes by directly changing the parameters."), 
-        tags$li("'Barcode Height' is for whole barcode area (1 means the label height x label height square on the left)"), 
-        tags$li("'Barcode Scale' allow you to scale down the barcode plot, so you have more spaces around it."),
         tags$li("Show border: set to YES first to see how your text fit in the label sheets. Please set to NO for the final printing file."),
         tags$li("Please choose 'NO Scaling' or 'Actual size' when printing on a printer.")
       ),
@@ -364,7 +364,7 @@ server <- function(input, output, session) {
   # label only for the first row for preview
   tmp_label_list = reactive({
     req(input$sizeInfo)
-    pdf(file=NULL)
+    pdf(file=NULL) # mystrwidth depends on the device.
     vp_list = list()
     content_list = list()
     nms = names(input$sizeInfo)
@@ -372,15 +372,15 @@ server <- function(input, output, session) {
       ss = input$contentInfo[[x]]
       ss2 = input$sizeInfo[[x]]
       if (ss$type == "text") {
-        tt = text_array_wrap(mydata()[1,ss$var], 12, ss2$width*input$label_width, ss2$height*input$label_height, ss$fontfamily, useMarkdown = T)
+        tt = text_array_wrap(mydata()[1,ss$var], 12, round(ss2$width*input$label_width,3), round(ss2$height*input$label_height,3), ss$fontfamily, useMarkdown = T)
         content = tt$text
         Fsz = tt$font_size
         cat("Final Font size used is", Fsz, "\n")
-        vp = grid::viewport(x = ss2$x, y = 1-ss2$y, width = ss2$width, height = ss2$height, just = c("left", "top"), gp=grid::gpar(fontsize = Fsz, lineheight = 0.8, fontfamily=ss$fontfamily, fontface=as.numeric(ss$fontface), col=ss$fontcolor))
+        vp = grid::viewport(x = round(ss2$x,3), y = round(1-ss2$y,3), width = round(ss2$width,3), height = round(ss2$height,3), just = c("left", "top"), gp=grid::gpar(fontsize = Fsz, lineheight = 0.8, fontfamily=ss$fontfamily, fontface=as.numeric(ss$fontface), col=ss$fontcolor))
         vp_list[[x]] = vp
         content_list[[x]] = content
       } else {
-        vp = grid::viewport(x = ss2$x, y = 1-ss2$y, width = ss2$width, height = ss2$height, just = c("left", "top"))
+        vp = grid::viewport(x = round(ss2$x,3), y = round(1-ss2$y,3), width = round(ss2$width,3), height = round(ss2$height,3), just = c("left", "top"))
         if (ss$type == "dm") content = lapply(as.character(mydata()[1,ss$var]), dmcode_make)
         else if(ss$type == "qr") content = lapply(as.character(mydata()[1,ss$var]), qrcode_make)
         else if(ss$type == "linear") content = lapply(as.character(mydata()[1,ss$var]), code_128_make)
@@ -471,20 +471,20 @@ server <- function(input, output, session) {
     vp_list = list()
     content_list = list()
     nms = names(input$sizeInfo)
-    pdf(file=NULL)
+    pdf(file=NULL) # mystrwidth() depends on the device
     for (x in nms){
       ss = input$contentInfo[[x]]
       ss2 = input$sizeInfo[[x]]
       if (ss$type == "text") {
-        tt = text_array_wrap(mydata()[,ss$var], 12, ss2$width*input$label_width, ss2$height*input$label_height, ss$fontfamily, useMarkdown = T)
+        tt = text_array_wrap(mydata()[,ss$var], 12, round(ss2$width*input$label_width,3), round(ss2$height*input$label_height,3), ss$fontfamily, useMarkdown = T)
         content = tt$text
         Fsz = tt$font_size
         cat("Final Font size used is", Fsz, "\n")
-        vp = grid::viewport(x = ss2$x, y = 1-ss2$y, width = ss2$width, height = ss2$height, just = c("left", "top"), gp=grid::gpar(fontsize = Fsz, lineheight = 0.8, fontfamily=ss$fontfamily, fontface=as.numeric(ss$fontface), col=ss$fontcolor))
+        vp = grid::viewport(x = round(ss2$x,3), y = round(1-ss2$y,3), width = round(ss2$width,3), height = round(ss2$height,3), just = c("left", "top"), gp=grid::gpar(fontsize = Fsz, lineheight = 0.8, fontfamily=ss$fontfamily, fontface=as.numeric(ss$fontface), col=ss$fontcolor))
         vp_list[[x]] = vp
         content_list[[x]] = content
       } else {
-        vp = grid::viewport(x = ss2$x, y = 1-ss2$y, width = ss2$width, height = ss2$height, just = c("left", "top"))
+        vp = grid::viewport(x = round(ss2$x,3), y = round(1-ss2$y,3), width = round(ss2$width,3), height = round(ss2$height,3), just = c("left", "top"))
         if (ss$type == "dm") content = lapply(as.character(mydata()[,ss$var]), dmcode_make)
         else if(ss$type == "qr") content = lapply(as.character(mydata()[,ss$var]), qrcode_make)
         else if(ss$type == "linear") content = lapply(as.character(mydata()[,ss$var]), code_128_make)
@@ -532,6 +532,95 @@ server <- function(input, output, session) {
     }
   )
   
+  # R code for reproducing in R
+  # 1. read or create dataset
+  csv_code_snippet <- reactive({noquote(
+    paste0(
+      "df <- read.csv( \'", input$labels$name, 
+      "\', header = ", input$header, 
+      ", sep = '", gsub('\t','\\t', input$sep, fixed=T),
+      "', stringsAsFactors = FALSE)"
+    ))})
+  
+  create_data_snippet <- reactive({noquote(
+    paste0(
+      'tt = gsub("\\\\n","\n",', input$simpleText, ")",
+      'df = data.frame(label=rep(tt,', input$simpleTextRepeat, '))'
+    ))})
+  
+  # get the view port settings and contents
+  vp_snippet <- reactive({
+    rr = paste(
+      "vp_list = list()",
+      "content_list = list()",
+      "pdf(file=NULL)", sep="\n"
+    )
+    nms = names(input$sizeInfo)
+    # pdf(file=NULL) # mystrwidth() depends on the device
+    for (x in nms){
+      ss = input$contentInfo[[x]]
+      ss2 = input$sizeInfo[[x]]
+      if (ss$type == "text") {
+        rr = paste(
+          rr,
+          paste0('tt = text_array_wrap(df$', ss$var,', 12, ', round(ss2$width*input$label_width,3), ',', round(ss2$height*input$label_height,3), ',', ss$fontfamily, ', useMarkdown = T)'),
+          'content = tt$text',
+          'Fsz = tt$font_size',
+          paste0('vp = grid::viewport(x = ', round(ss2$x,3), ', y = ', round(1-ss2$y,3), ', width = ', round(ss2$width,3), ', height = ', round(ss2$height,3), ', just = c("left", "top"), gp=grid::gpar(fontsize = Fsz, lineheight = 0.8, fontfamily="', ss$fontfamily, '", fontface=', ss$fontface, ', col="', ss$fontcolor,'"))'),
+          paste0('vp_list$', x, ' = vp'),
+          paste0('content_list$', x, ' = content'), sep="\n"
+        )
+      } else {
+        rr = paste(
+          rr,
+          paste0('vp = grid::viewport(x = ', round(ss2$x,3), ', y = ', round(1-ss2$y,3), ', width = ', round(ss2$width,3), ', height = ', round(ss2$height,3), ', just = c("left", "top"))'),
+          {if (ss$type == "dm") paste0('content = lapply(as.character(', 'df$', ss$var, '), dmcode_make)')
+          else if (ss$type == "qr") paste0('content = lapply(as.character(df$', ss$var, '), qrcode_make)')
+          else if(ss$type == "linear") paste0('content = lapply(as.character(df$', ss$var, '), code_128_make)')},
+          paste0('vp_list$', x, ' = vp'),
+          paste0('content_list$', x, ' = content'), sep="\n"
+        )
+      }
+    }
+    rr = paste(
+      rr,
+      'dev.off()',
+      'label_list = list(vp_list=vp_list, content_list=content_list)', sep="\n"
+    )
+    noquote(rr)
+  })
+  
+  # make pdf code
+  PDF_code_snippet<-shiny::reactive({
+    noquote(
+      paste0("make_custom_label(",
+             "label_number = ", nrow(mydata()),
+             ",\nname = '", input$filename,
+             "',\nfontfamily = '", input$fontfamily,
+             "',\nshowborder = ", input$showborder,
+             ",\nborder_type = '", input$border_type,
+             "',\nvp_list = label_list$vp_list",
+             ",\ncontent_list = label_list$content_list",
+             ",\nnumrow = ", input$numrow, 
+             ",\nnumcol = ", input$numcol, 
+             ",\npage_width = ", input$page_width, 
+             ",\npage_height = ", input$page_height, 
+             ",\nheight_margin = ", input$height_margin, 
+             ",\nwidth_margin = ", input$width_margin, 
+             ",\nlabel_width = ", input$label_width, 
+             ",\nlabel_height = ", input$label_height, 
+             ",\ntext_align = '", input$text_align,
+             "',\nuseMarkdown = T",
+             ",\nECols = ", input$ECol - 1,
+             ",\nERows = ", input$ERow - 1,
+             ")"
+      )
+    )
+  })
+  
+  output$rcode <- shiny::renderText({
+    paste(csv_code_snippet(), vp_snippet(), PDF_code_snippet(), sep = "\n")
+  })
 }
 shinyApp(ui = ui, server = server)
 
