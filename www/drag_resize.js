@@ -64,7 +64,7 @@ function addBox(){
     console.log(document.getElementById("input_var").value);
     box.id = id;
     box.classList.add("resize-drag");
-    box.style.fontSize = document.getElementById("input_var_size").value *96/72 + "px";//96px = 72pt= 1 inch
+    box.style.fontSize = 8*96/72 + "px"// document.getElementById("input_var_size").value *96/72 + "px";//96px = 72pt= 1 inch
     box.style.color = document.getElementById("input_var_color").value;
     box.style.fontFamily = document.getElementById("input_var_fontfamily").value;
     let fontface = document.getElementById("input_var_fontface").value;

@@ -39,37 +39,39 @@ ui <- fluidPage(
       ),
       # p(strong("Or input manually if all labels are the same")),
       fluidRow(
-        column(width = 8,
-               textInput("simpleText", "Or input manually if all labels are the same (use '\\n' for line break)", value = "abc\\n123")),
+        column(width = 6,
+               textInput("simpleText", "Or input manually repeated labels", value = "", placeholder = "such as 'abc\\n123' ('\\n' for line break)")),
         column(width = 3,
                numericInput("simpleTextRepeat", 
                             "Number of labels", 
-                            value = 4, min = 1))
+                            value = 4, min = 1)),
+        column(width=2, actionButton("createDataset", "Create Dataset", style="background-color: #82e0e8"), style = "margin-top: 25px;" )
       ),
-      actionButton("createDataset", "Create Dataset"),
+      # actionButton("createDataset", "Create Dataset"),
       # Select variables to display ----
       # uiOutput("select_column"),
-      p(strong("2. Custom text (can add multiple times)")),
+      p(strong("2. (Optional) Create new variables")),
       uiOutput("add_text"),
       actionButton("textBn", "Add/append text"),
       actionButton("undo_once", "Undo once"),
       actionButton("reset_text", "Reset text"),
+      actionButton("make_new_var", "Finish", style="background-color: #82e0e8"),
       p("New variable preview:"),
       textOutput("preview_new_var"),
-      actionButton("make_new_var", "Finish"),
-      # design label
-      p(strong("3. Design label")),
-      withTags({
-        div(
-          div(id="drawing-area", class="grid" )
-        )
-      }),
+      fluidRow(
+        column(width = 6, p(strong("3. Design label"))),
+        column(width = 6, p(strong("Label Preview")))
+      ),
+      fluidRow(
+        column(width = 6, div(id="drawing-area", class="grid")),
+        column(width = 6, div(plotOutput("label_preview", height = "auto", width = "auto")))
+      ),
       uiOutput("select_content"),
       p(strong("4. (Optional) Modify PDF from default values")),
       fluidRow(
-        column(width = 2,
-               textInput("filename", "Output PDF name", value = "LabelsOut")),
         column(width = 3,
+               textInput("filename", "Output PDF name", value = "LabelsOut")),
+        column(width = 4,
                selectInput(
                  inputId = "label_type",
                  label   = "Preset Label Type",
@@ -128,46 +130,26 @@ ui <- fluidPage(
                             value = 4, min = 1, max = 100, width=NULL, step = 1))
       ),
       fluidRow(
-        column(
-          width = 3,
-          radioButtons("text_align", 
-                       "Text alignment", 
-                       choices = c("left", "center"),
-                       selected = "center", inline = TRUE)),
-        column(
-          width = 3,
-          radioButtons("showborder", 
-                       "Show border for output?", 
-                       choices = c(Yes = TRUE, No = FALSE),
-                       selected = FALSE, inline = TRUE)
-        ),
-        column(
-          width = 3,
-          radioButtons("border_type", 
-                       "Rectangle or circle border?", 
-                       choices = c("rectangle", "circle", "both"),
-                       selected = "rectangle", inline = TRUE)
-        )
-      ), 
-      fluidRow(
-        column(width = 4,
+        column(width = 3,
                numericInput("ERow", 
                             "Label print from Row", 
                             value = 1, min=1, max=100)),
-        column(width = 4,
+        column(width = 3,
                numericInput("ECol", 
                             "Label print from Column", 
-                            value = 1, min=1, max=100))
+                            value = 1, min=1, max=100)),
+        column(
+          width = 4,
+          radioButtons("border_type",
+                       "Rectangle or circle border?",
+                       choices = c("rectangle", "circle", "both"),
+                       selected = "rectangle", inline = TRUE)  )
       ),
-      width = 8
+      width = 7
     ),
     
     # Main panel for displaying outputs ----
     mainPanel(
-      h4(strong("Preview")),
-      br(),
-      plotOutput("label_preview", height = "auto", width = "auto"),
-      br(),
       plotOutput("barcode_preview", height = "auto", width = "auto"),
       br(),
       p(strong("6. Make PDF")),
@@ -197,7 +179,7 @@ ui <- fluidPage(
         tags$li("Show border: set to YES first to see how your text fit in the label sheets. Please set to NO for the final printing file."),
         tags$li("Please choose 'NO Scaling' or 'Actual size' when printing on a printer.")
       ),
-      width = 4
+      width = 5
     )
   )
 )
@@ -235,19 +217,18 @@ server <- function(input, output, session) {
     print(data_choices)
     tagList(
     fluidRow(
-      column(width = 2, 
+      column(width = 3, 
     selectInput("input_type","Input Type", 
                 choices = list("Linear (1D)" = "linear",
                                "QR Code" = "qr",
                                "Data Matrix" = "dm",
                                "Text" = "text"),
                 selected = "dm", multiple = FALSE)),
-    column(width = 2, 
+    column(width = 3, 
       selectInput(inputId = "input_var", label = "Input variable", 
                 choices = data_choices, multiple=FALSE)),
-    column(width = 2, 
-           numericInput(inputId = "input_var_size", label = "Font size (pt)",value = 8, min = 1)),
-    column(width = 2,
+    #column(width = 2, numericInput(inputId = "input_var_size", label = "Font size (pt)",value = 8, min = 1)),
+    column(width = 3,
            selectInput(inputId = "input_var_fontfamily", 
                        label = "Font", 
                        choices = c(
@@ -255,12 +236,26 @@ server <- function(input, output, session) {
                          "serif"= "sans-serif",
                          "monospace" = "monospace"),
                        multiple=FALSE)),
-    column(width = 2,
-           textInput("input_var_color", "Text color", value = "black")),
-    column(
-      width = 2, selectInput("input_var_fontface", "Font face", choices = c(plain=1, bold=2, italic=3, boldItalic=4)))
-    ),
-    actionButton("addButton", "Add", onClick="addBox()")
+    column(width = 3,
+           textInput("input_var_color", "Text color", value = "black"))
+    ), fluidRow(
+      column(width = 3, actionButton("addButton", "Add", onClick="addBox()", style="background-color: #82e0e8")
+        ),
+      column(
+        width = 3,
+        radioButtons("text_align", 
+                     "Text alignment", 
+                     choices = c("left", "center"),
+                     selected = "center", inline = TRUE)),
+      column(
+        width = 3,
+        radioButtons("showborder", 
+                     "Show border for output?", 
+                     choices = c(Yes = TRUE, No = FALSE),
+                     selected = FALSE, inline = TRUE) ),
+      column(
+        width = 3, selectInput("input_var_fontface", "Font face", choices = c(plain=1, bold=2, italic=3, boldItalic=4)))
+    )
     )
   })
   
@@ -268,9 +263,9 @@ server <- function(input, output, session) {
   output$add_text <- renderUI({
     cc = ncol(rawdata())
     fluidRow(
-      column( width = 2, textInput("newvar",  "New variable name", value = "var1")  ),
+      column( width = 3, textInput("newvar",  "New variable name", value = "var1")  ),
       column( width = 2, textInput("prefix",  "Text Prefix", value = "")  ),
-      column( width = 3, selectInput( inputId = "variable", label   = "Variable to add",
+      column( width = 2, selectInput( inputId = "variable", label   = "Variable to add",
                                       choices = c(Choose = "", names(mydata())[-c(cc+1, cc+2)])   )
       ),
       column(
@@ -373,7 +368,7 @@ server <- function(input, output, session) {
       ss = input$contentInfo[[x]]
       ss2 = input$sizeInfo[[x]]
       if (ss$type == "text") {
-        tt = text_array_wrap(mydata()[1,ss$var], 12, round(ss2$width*input$label_width,3), round(ss2$height*input$label_height,3), ss$fontfamily, useMarkdown = T)
+        tt = text_array_wrap(mydata()[1,ss$var], input$font_size, round(ss2$width*input$label_width,3), round(ss2$height*input$label_height,3), ss$fontfamily, useMarkdown = T)
         content = tt$text
         Fsz = tt$font_size
         cat("Final Font size used is", Fsz, "\n")
@@ -462,7 +457,8 @@ server <- function(input, output, session) {
          id = "barcodeImg",
          width = 100, 
          height = 100,
-         alt = "barcode Preview")
+         alt = "barcode Preview",
+         style="display:none") # do not show
   }, deleteFile = TRUE
   )
   
@@ -477,7 +473,7 @@ server <- function(input, output, session) {
       ss = input$contentInfo[[x]]
       ss2 = input$sizeInfo[[x]]
       if (ss$type == "text") {
-        tt = text_array_wrap(mydata()[,ss$var], 12, round(ss2$width*input$label_width,3), round(ss2$height*input$label_height,3), ss$fontfamily, useMarkdown = T)
+        tt = text_array_wrap(mydata()[,ss$var], input$font_size, round(ss2$width*input$label_width,3), round(ss2$height*input$label_height,3), ss$fontfamily, useMarkdown = T)
         content = tt$text
         Fsz = tt$font_size
         cat("Final Font size used is", Fsz, "\n")
@@ -572,7 +568,7 @@ server <- function(input, output, session) {
       if (ss$type == "text") {
         rr = paste(
           rr,
-          paste0('tt = text_array_wrap(df$', ss$var,', 12, ', round(ss2$width*input$label_width,3), ',', round(ss2$height*input$label_height,3), ',"', ss$fontfamily, '", useMarkdown = T)'),
+          paste0('tt = text_array_wrap(df$', ss$var, ',',  input$font_size, ', ', round(ss2$width*input$label_width,3), ',', round(ss2$height*input$label_height,3), ',"', ss$fontfamily, '", useMarkdown = T)'),
           'content = tt$text',
           'Fsz = tt$font_size',
           paste0('vp = grid::viewport(x = ', round(ss2$x,3), ', y = ', round(1-ss2$y,3), ', width = ', round(ss2$width,3), ', height = ', round(ss2$height,3), ', just = c("left", "top"), gp=grid::gpar(fontsize = Fsz, lineheight = 0.8, fontfamily="', ss$fontfamily, '", fontface=', ss$fontface, ', col="', ss$fontcolor,'"))'),
