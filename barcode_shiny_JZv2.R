@@ -59,12 +59,12 @@ ui <- fluidPage(
       p("New variable preview:"),
       textOutput("preview_new_var"),
       fluidRow(
-        column(width = 6, p(strong("3. Design label"))),
-        column(width = 6, p(strong("Label Preview")))
+        column(width = 8, p(strong("3. Design label"))),
+        column(width = 4, p(strong("Label Preview")))
       ),
       fluidRow(
-        column(width = 6, div(id="drawing-area", class="grid")),
-        column(width = 6, div(plotOutput("label_preview", height = "auto", width = "auto")))
+        column(width = 8, div(id="drawing-area", class="grid")),
+        column(width = 4, div(plotOutput("label_preview", height = "auto", width = "auto")))
       ),
       uiOutput("select_content"),
       p(strong("4. (Optional) Modify PDF from default values")),
@@ -145,7 +145,7 @@ ui <- fluidPage(
                        choices = c("rectangle", "circle", "both"),
                        selected = "rectangle", inline = TRUE)  )
       ),
-      width = 7
+      width = 8
     ),
     
     # Main panel for displaying outputs ----
@@ -179,7 +179,7 @@ ui <- fluidPage(
         tags$li("Show border: set to YES first to see how your text fit in the label sheets. Please set to NO for the final printing file."),
         tags$li("Please choose 'NO Scaling' or 'Actual size' when printing on a printer.")
       ),
-      width = 5
+      width = 4
     )
   )
 )
@@ -214,6 +214,7 @@ server <- function(input, output, session) {
     df = mydata()
     cc = ncol(rawdata())
     data_choices = as.list(df[1,])[-c(cc+1, cc+2)]
+    cat("data_choices are:\n")
     print(data_choices)
     tagList(
     fluidRow(
