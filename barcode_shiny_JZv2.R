@@ -47,11 +47,7 @@ ui <- fluidPage(
                             value = 4, min = 1)),
         column(width=2, actionButton("createDataset", "Create Dataset", style="background-color: #82e0e8"), style = "margin-top: 25px;" )
       ),
-      # actionButton("createDataset", "Create Dataset"),
-      # Select variables to display ----
-      # uiOutput("select_column"),
       p(strong("2. (Optional) Create new variables")),
-      # uiOutput("add_text"),
       fluidRow(
         column( width = 2, textInput("newvar",  "Name", value = "", placeholder="new variable name")  ),
         column( width = 5, textInput("prefix",  "Text", value = "", placeholder="e.g. Row {Row} (choose vars on the right")  ),
@@ -61,14 +57,8 @@ ui <- fluidPage(
         ),
         column(
           width = 2, selectInput("fontface", "Font face", choices = c(plain=1, bold=2, italic=3, boldItalic=4))
-        ),
-        # column(
-        #   width = 3, radioButtons("newline", "Add line break?", choices = c(Yes = "\n", No = ""), selected = "", inline = T)
-        # )
+        )
       ),
-      # actionButton("textBn", "Add/append text"),
-      # actionButton("undo_once", "Undo once"),
-      # actionButton("reset_text", "Reset text"),
       actionButton("make_new_var", "Add", style="background-color: #82e0e8"),
       # p("New variable preview:"),
       # verbatimTextOutput("preview_new_var"),
@@ -296,32 +286,7 @@ server <- function(input, output, session) {
     newtxt = paste0(input$prefix, fonts[fn], "{", input$variable, "}", fonts[fn])
     updateTextInput(session, "prefix",value = newtxt)
   }, ignoreInit=T)
-  
-  # observeEvent(input$textBn, {
-  #   df2 =  mydata()
-  #   fn = as.integer(input$fontface)
-  #   fonts = c("", "**", "*", "***")
-  #   df2$tmp = df2$text2add
-  #   if (is.null(input$variable))
-  #     df2$text2add <- paste0(df2$text2add, fonts[fn], input$prefix,fonts[fn],input$newline)
-  #   else
-  #     df2$text2add <- paste0(df2$text2add, fonts[fn], input$prefix, df2[,input$variable],fonts[fn],input$newline)
-  #   mydata(df2)
-  #   resetLabelTextInput()
-  # })
-  # observeEvent(input$reset_text, {
-  #   df2 =  mydata()
-  #   df2$tmp = df2$text2add
-  #   df2$text2add <- ""
-  #   mydata(df2)
-  #   resetLabelTextInput()
-  # })
-  # observeEvent(input$undo_once, {
-  #   df2 =  mydata()
-  #   df2$text2add = df2$tmp
-  #   mydata(df2)
-  #   resetLabelTextInput()
-  # })
+
   observeEvent(input$make_new_var, {
     df2 =  mydata()
     ss = input$prefix
@@ -459,12 +424,6 @@ server <- function(input, output, session) {
   }, deleteFile = TRUE
   )
 
-  # new variable preview
-  # output$preview_new_var<-renderText({
-  #   req(mydata())
-  #   mydata()[1,"text2add"]
-  # })
-  
   ## barcode preview
   output$barcode_preview <- renderImage({
     req(mydata())
