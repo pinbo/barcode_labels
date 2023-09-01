@@ -71,7 +71,7 @@ ui <- fluidPage(
       actionButton("reset_text", "Reset text"),
       actionButton("make_new_var", "Finish", style="background-color: #82e0e8"),
       p("New variable preview:"),
-      textOutput("preview_new_var"),
+      verbatimTextOutput("preview_new_var"),
       fluidRow(
         column(width = 8, p(strong("3. Design label"))),
         column(width = 4, p(strong("Label Preview")))
@@ -444,9 +444,9 @@ server <- function(input, output, session) {
   )
 
   # new variable preview
-  output$preview_new_var<-renderPrint({
+  output$preview_new_var<-renderText({
     req(mydata())
-    cat("\n",mydata()[1,"text2add"],"\n")
+    mydata()[1,"text2add"]
   })
   
   ## barcode preview
