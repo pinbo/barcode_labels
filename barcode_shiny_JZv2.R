@@ -50,8 +50,8 @@ ui <- fluidPage(
       p(strong("2. (Optional) Create new variables")),
       fluidRow(
         column( width = 2, textInput("newvar",  "Name", value = "", placeholder="new variable name")  ),
-        column( width = 5, textInput("prefix",  "Text", value = "", placeholder="e.g. Row {Row} (choose vars on the right")  ),
-        column( width = 3, selectizeInput( inputId = "variable", label   = "Variable to insert",
+        column( width = 5, textInput("prefix",  "Text ('\\n' for line break)", value = "", placeholder="e.g. Row {Row} (choose vars on the right)")  ),
+        column( width = 3, selectizeInput( inputId = "variable", label   = "Var. to add",
                                         choices = NULL,  multiple = TRUE,
                                         options = list(maxItems = 1)   )
         ),
@@ -227,7 +227,7 @@ server <- function(input, output, session) {
                                "QR Code" = "qr",
                                "Data Matrix" = "dm",
                                "Text" = "text"),
-                selected = "dm", multiple = FALSE)),
+                selected = "text", multiple = FALSE)),
     column(width = 3, 
       selectInput(inputId = "input_var", label = "Input variable", 
                 choices = data_choices, multiple=FALSE)),
@@ -289,7 +289,7 @@ server <- function(input, output, session) {
 
   observeEvent(input$make_new_var, {
     df2 =  mydata()
-    ss = input$prefix
+    ss = gsub("\\\\n", "\n",  input$prefix)
     aa = strsplit(ss, "[{}]")[[1]]
     cc = gsub("\\}", "x0x0\\}", ss)
     dd = strsplit(cc, "[{}]")[[1]]
