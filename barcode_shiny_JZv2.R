@@ -51,7 +51,21 @@ ui <- fluidPage(
       # Select variables to display ----
       # uiOutput("select_column"),
       p(strong("2. (Optional) Create new variables")),
-      uiOutput("add_text"),
+      # uiOutput("add_text"),
+      fluidRow(
+        column( width = 2, textInput("newvar",  "Name", value = "", placeholder="new variable name")  ),
+        column( width = 2, textInput("prefix",  "Text Prefix", value = "")  ),
+        column( width = 3, selectizeInput( inputId = "variable", label   = "Variable to add",
+                                        choices = NULL,  multiple = TRUE,
+                                        options = list(maxItems = 1)   )
+        ),
+        column(
+          width = 2, selectInput("fontface", "Font face", choices = c(plain=1, bold=2, italic=3, boldItalic=4))
+        ),
+        column(
+          width = 3, radioButtons("newline", "Add line break?", choices = c(Yes = "\n", No = ""), selected = "", inline = T)
+        )
+      ),
       actionButton("textBn", "Add/append text"),
       actionButton("undo_once", "Undo once"),
       actionButton("reset_text", "Reset text"),
@@ -150,8 +164,6 @@ ui <- fluidPage(
     
     # Main panel for displaying outputs ----
     mainPanel(
-      plotOutput("barcode_preview", height = "auto", width = "auto"),
-      br(),
       p(strong("6. Make PDF")),
       actionButton("make_pdf", "Make PDF"),
       p(strong("7. Download PDF")),
@@ -163,6 +175,7 @@ ui <- fluidPage(
       h4(strong("Reproducible Code")),
       verbatimTextOutput("rcode"),
       br(),
+      plotOutput("barcode_preview", height = "auto", width = "auto"),
       br(),
       h4(strong("Help")),
       tags$body("This is a shiny application for R package "),
@@ -261,27 +274,18 @@ server <- function(input, output, session) {
   })
   
   # add text
-  output$add_text <- renderUI({
+  observe({
     cc = ncol(rawdata())
-    fluidRow(
-      column( width = 3, textInput("newvar",  "New variable name", value = "var1")  ),
-      column( width = 2, textInput("prefix",  "Text Prefix", value = "")  ),
-      column( width = 2, selectInput( inputId = "variable", label   = "Variable to add",
-                                      choices = c(Choose = "", names(mydata())[-c(cc+1, cc+2)])   )
-      ),
-      column(
-        width = 2, selectInput("fontface", "Font face", choices = c(plain=1, bold=2, italic=3, boldItalic=4))
-      ),
-      column(
-        width = 3, radioButtons("newline", "Add line break?", choices = c(Yes = "\n", No = ""), selected = "", inline = T)
-      )
-    )
+    updateSelectInput(session, "variable",
+                      choices = names(mydata()[-c(cc+1, cc+2)])
+                      )
   })
+  
   # add more text
   resetLabelTextInput = function(){
     # reset to all input as default
     updateTextInput(session, "prefix",value = "")
-    updateSelectInput(session,"variable", selected="")
+    updateSelectizeInput(session,"variable", selected=NULL)
     updateRadioButtons(session,"newline",selected = "")
     updateSelectInput(session,"fontface",selected = 1)
   }
@@ -290,11 +294,10 @@ server <- function(input, output, session) {
     fn = as.integer(input$fontface)
     fonts = c("", "**", "*", "***")
     df2$tmp = df2$text2add
-    if (input$variable == "")
+    if (is.null(input$variable))
       df2$text2add <- paste0(df2$text2add, fonts[fn], input$prefix,fonts[fn],input$newline)
     else
       df2$text2add <- paste0(df2$text2add, fonts[fn], input$prefix, df2[,input$variable],fonts[fn],input$newline)
-    df2[[input$newvar]]=df2$text2add
     mydata(df2)
     resetLabelTextInput()
   })
@@ -318,6 +321,7 @@ server <- function(input, output, session) {
     df2$tmp = ""
     mydata(df2)
     resetLabelTextInput()
+    updateTextInput(session, "newvar", value = "")
   })
   ## preset labels
   
@@ -360,7 +364,7 @@ server <- function(input, output, session) {
 
   # label only for the first row for preview
   tmp_label_list = reactive({
-    req(input$sizeInfo)
+    req(input$addButton)
     pdf(file=NULL) # mystrwidth depends on the device.
     vp_list = list()
     content_list = list()
@@ -518,8 +522,6 @@ server <- function(input, output, session) {
     status
   })
   
-  # label preview
-  
   # rendering of pdf indicator
   output$PDF_status<-renderPrint({cat("\n",PDF_done())})
   # download all the files
@@ -555,6 +557,7 @@ server <- function(input, output, session) {
   
   # get the view port settings and contents
   vp_snippet <- reactive({
+    req(input$addButton)
     rr = paste(
       "\n# create layouts on the label",
       "vp_list = list()",
@@ -562,7 +565,6 @@ server <- function(input, output, session) {
       "pdf(file=NULL)", sep="\n"
     )
     nms = names(input$sizeInfo)
-    # pdf(file=NULL) # mystrwidth() depends on the device
     for (x in nms){
       ss = input$contentInfo[[x]]
       ss2 = input$sizeInfo[[x]]
