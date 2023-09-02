@@ -192,13 +192,9 @@ server <- function(input, output, session) {
   # pdf making server side
   # check label file
   mydata = reactiveVal()
-  rawdata = reactiveVal()
   
   observeEvent(input$labels,{
     df<-read.csv(input$labels$datapath, header=input$header, stringsAsFactors = FALSE, sep = input$sep)
-    rawdata(df)
-    df$text2add = "" # add an column for text to add
-    df$tmp = "" # store last step
     mydata(df)
   })
   
@@ -206,9 +202,6 @@ server <- function(input, output, session) {
     if(input$simpleText != "" & input$simpleTextRepeat > 0){
       tt = gsub("\\\\n","\n",input$simpleText) # need this to get the correct line break
       df = data.frame(label=rep(tt, input$simpleTextRepeat))
-      rawdata(df)
-      df$text2add = "" # add an column for text to add
-      df$tmp = "" # store last step
       mydata(df)
     }
   })
@@ -216,8 +209,7 @@ server <- function(input, output, session) {
   # for manual layout
   output$select_content <- renderUI({
     df = mydata()
-    cc = ncol(rawdata())
-    data_choices = as.list(df[1,])[-c(cc+1, cc+2)]
+    data_choices = as.list(df[1,])
     cat("data_choices are:\n")
     print(data_choices)
     tagList(
@@ -266,9 +258,8 @@ server <- function(input, output, session) {
   
   # add text
   observe({
-    cc = ncol(rawdata())
     updateSelectInput(session, "variable",
-                      choices = names(mydata()[-c(cc+1, cc+2)])
+                      choices = names(mydata())
                       )
   })
   
