@@ -188,6 +188,7 @@ ui <- fluidPage(
 )
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
+  session$onSessionEnded(function() { stopApp() }) 
   # pdf making server side
   # check label file
   mydata = reactiveVal()
@@ -287,6 +288,9 @@ server <- function(input, output, session) {
     updateTextInput(session, "prefix",value = newtxt)
   }, ignoreInit=T)
 
+  # create new variable
+  new_var_snippet = reactiveVal("# create custom variables")
+  
   observeEvent(input$make_new_var, {
     df2 =  mydata()
     ss = gsub("\\\\n", "\n",  input$prefix)
@@ -295,10 +299,20 @@ server <- function(input, output, session) {
     dd = strsplit(cc, "[{}]")[[1]]
     nn = grep("x0x0", dd)
     ss2 = ""
+    tmp = c()
     for (i in 1:length(aa)){
-      if (i %in% nn) ss2 = paste0(ss2, df2[,aa[i]])
-      else ss2 = paste0(ss2, aa[i])
+      if (i %in% nn) {
+        ss2 = paste0(ss2, df2[,aa[i]])
+        tmp = c( tmp, paste0("df$", aa[i]) )
+        }
+      else {
+        ss2 = paste0(ss2, aa[i])
+        tmp = c( tmp, paste0("'", aa[i], "'") )
+      }
     }
+    tmp2 = paste0(tmp, collapse=", ")
+    new_var_cmd = paste0(new_var_snippet(), "\ndf$", input$newvar," = paste0(", tmp2, ")" )
+    new_var_snippet(new_var_cmd)
     df2[[input$newvar]]=ss2
     mydata(df2)
     resetLabelTextInput()
@@ -371,9 +385,6 @@ server <- function(input, output, session) {
       }
     }
     dev.off()
-    cat("vp_list length:", length(vp_list),"\n")
-    cat("content_list length:", length(content_list),"\n")
-    print(vp_list)
     list(vp_list=vp_list, content_list=content_list)
   })
   
@@ -606,7 +617,7 @@ server <- function(input, output, session) {
   # library
   loadlib = '# need R library barcodeLabel, to install:\n# devtools::install_github("pinbo/barcodeLabel")\nlibrary(barcodeLabel)'
   output$rcode <- shiny::renderText({
-    paste(loadlib, csv_code_snippet(), vp_snippet(), PDF_code_snippet(), sep = "\n")
+    paste(loadlib, csv_code_snippet(), new_var_snippet(), vp_snippet(), PDF_code_snippet(), sep = "\n")
   })
 }
 shinyApp(ui = ui, server = server)
