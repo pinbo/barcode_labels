@@ -59,11 +59,11 @@ ui <- fluidPage(
           width = 2, selectInput("fontface", "Font face", choices = c(plain=1, bold=2, italic=3, boldItalic=4))
         )
       ),
-      actionButton("make_new_var", "Add", style="background-color: #82e0e8"),
+      actionButton("make_new_var", "Add new variable", style="background-color: #82e0e8"),
       # p("New variable preview:"),
       # verbatimTextOutput("preview_new_var"),
       fluidRow(
-        column(width = 8, p(strong("3. Design label"))),
+        column(width = 8, p(strong("3. Design label"), "(double-click a box to delete)")),
         column(width = 4, p(strong("Label Preview")))
       ),
       fluidRow(
@@ -236,7 +236,7 @@ server <- function(input, output, session) {
     column(width = 3,
            textInput("input_var_color", "Text color", value = "black"))
     ), fluidRow(
-      column(width = 3, actionButton("addButton", "Add", onClick="addBox()", style="background-color: #82e0e8")
+      column(width = 3, actionButton("addButton", "Add content", onClick="addBox()", style="background-color: #82e0e8")
         ),
       column(
         width = 3,
