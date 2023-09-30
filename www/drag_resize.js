@@ -40,8 +40,14 @@ function getPos(id){
 
 $(document).on('shiny:inputchanged', function(event) {
 	const boxA = document.getElementById("drawing-area");
-	boxA.style.height = document.getElementById("label_height").value*96*2 + "px"; // 96px is 1 inch
-	boxA.style.width = document.getElementById("label_width").value*96*2 + "px";
+  let convertNum = 96*2; // for inch, 96px is 1 inch
+  if (document.getElementById("unit").value == "mm") convertNum = 3.78*2; // 1mm=3.78px
+  let boxAwidth = document.getElementById("label_width").value * convertNum;
+  if (boxAwidth > boxA.parentElement.clientWidth * 0.9) boxAwidth = boxA.parentElement.clientWidth * 0.9;
+	// boxA.style.height = document.getElementById("label_height").value * convertNum + "px";
+	// boxA.style.width = document.getElementById("label_width").value * convertNum + "px";
+  boxA.style.width = boxAwidth + "px";
+	boxA.style.height = document.getElementById("label_height").value / document.getElementById("label_width").value * boxAwidth + "px";
 	/*document.getElementById("label_height").addEventListener("input", e => {
 	  boxA.style.height = e.target.value*2 + "in";
 	});

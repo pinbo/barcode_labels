@@ -63,12 +63,12 @@ ui <- fluidPage(
       # p("New variable preview:"),
       # verbatimTextOutput("preview_new_var"),
       fluidRow(
-        column(width = 8, p(strong("3. Design label"), "(double-click a box to delete)")),
-        column(width = 4, p(strong("Label Preview")))
+        column(width = 7, p(strong("3. Design label"), "(double-click a box to delete)")),
+        column(width = 5, p(strong("Label Preview")))
       ),
       fluidRow(
-        column(width = 8, div(id="drawing-area", class="grid")),
-        column(width = 4, div(plotOutput("label_preview", height = "auto", width = "auto")))
+        column(width = 7, div(id="drawing-area", class="grid")),
+        column(width = 5, div(plotOutput("label_preview", height = "auto", width = "auto")))
       ),
       uiOutput("select_content"),
       p(strong("4. (Optional) Modify PDF from default values")),
@@ -79,11 +79,11 @@ ui <- fluidPage(
                selectInput(
                  inputId = "label_type",
                  label   = "Preset Label Type",
-                 c('Avery 5967 (0.5" x 1.75")' = "avery5967", 'Avery 5960 (1.0" x 2.63")' = "avery5960", 'Tough Spots 3/8in' = 'Tough-Spots-3/8in')
+                 c('Avery 5967 (0.5" x 1.75")' = "avery5967", 'Avery 5960 (1.0" x 2.63")' = "avery5960", 'Tough Spots 3/8in' = 'Tough-Spots-3/8in', 'A4 paper example' = 'A4-paper-example')
                )),
         column(width = 2,
                numericInput("font_size", 
-                            "Font Size", 
+                            "Max. Font Size", 
                             value = 12, min = 2, max = 100)),
         column(width = 2,
                selectInput(inputId = "fontfamily", 
@@ -97,32 +97,32 @@ ui <- fluidPage(
       fluidRow(
         column(width = 3,
                numericInput("width_margin", 
-                            "Side margin (in)", 
+                            "Side margin", 
                             value = 0.3, 
                             min = 0, max = 20, width=NULL, step = 0.05)),
         column(width = 3,
                numericInput("height_margin", 
-                            "Top margin (in)", 
+                            "Top margin", 
                             value = 0.5, min = 0, max = 20, width=NULL, step = 0.05)),
         column(width = 3,
                numericInput("page_width", 
-                            "Page Width (in)", 
+                            "Page Width", 
                             value = 8.5, min = 1, max = 20, width=NULL,
                             step = 0.5)),
         column(width = 3,
                numericInput("page_height", 
-                            "Page Height (in)", 
+                            "Page Height", 
                             value = 11, 
                             min = 1, max = 20, width=NULL, step = 0.5))
       ),
       fluidRow(
         column(width = 3,
                numericInput("label_width", 
-                            "Label width (in)", 
+                            "Label width", 
                             value = 1.75, min=0, max=100)),
         column(width = 3,
                numericInput("label_height", 
-                            "Label height (in)", 
+                            "Label height", 
                             value = 0.5, min=0, max=100)),
         column(width = 3,
                numericInput("numrow", 
@@ -142,8 +142,11 @@ ui <- fluidPage(
                numericInput("ECol", 
                             "Label print from Column", 
                             value = 1, min=1, max=100)),
+        column(width = 3,
+          selectInput("unit", "Length Unit", choices = c("inch"="in", "mm"="mm")),
+          selected = "inch"),
         column(
-          width = 4,
+          width = 3,
           radioButtons("border_type",
                        "Rectangle or circle border?",
                        choices = c("rectangle", "circle", "both"),
@@ -188,7 +191,7 @@ ui <- fluidPage(
 )
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
-  session$onSessionEnded(function() { stopApp() }) 
+  #session$onSessionEnded(function() { stopApp() }) 
   # pdf making server side
   # check label file
   mydata = reactiveVal()
@@ -321,6 +324,7 @@ server <- function(input, output, session) {
       updateNumericInput(session, "label_height", value = 0.5)
       updateNumericInput(session, "width_margin", value = 0.3)
       updateNumericInput(session, "height_margin", value = 0.5)
+      updateSelectInput(session, "unit", selected = "in")
     }
     else if (input$label_type == "avery5960"){
       updateNumericInput(session, "numrow", value = 10)
@@ -331,6 +335,7 @@ server <- function(input, output, session) {
       updateNumericInput(session, "label_height", value = 1.0)
       updateNumericInput(session, "width_margin", value = 0.3)
       updateNumericInput(session, "height_margin", value = 0.5)
+      updateSelectInput(session, "unit", selected = "in")
     }
     else if (input$label_type == "Tough-Spots-3/8in"){
       updateNumericInput(session, "numrow", value = 16)
@@ -345,6 +350,18 @@ server <- function(input, output, session) {
       updateRadioButtons(session, "text_align", selected = "center")
       updateRadioButtons(session, "border_type", selected = "circle")
       updateSelectInput(session, "type", selected = "null")
+      updateSelectInput(session, "unit", selected = "in")
+    }
+    else if (input$label_type == "A4-paper-example"){
+      updateNumericInput(session, "numrow", value = 10)
+      updateNumericInput(session, "numcol", value = 3)
+      updateNumericInput(session, "page_width", value = 210)
+      updateNumericInput(session, "page_height", value = 297)
+      updateNumericInput(session, "label_width", value = 63.5)
+      updateNumericInput(session, "label_height", value = 28)
+      updateNumericInput(session, "width_margin", value = 5)
+      updateNumericInput(session, "height_margin", value = 8.5)
+      updateSelectInput(session, "unit", selected = "mm")
     }
   }, ignoreInit = TRUE)
 
@@ -359,7 +376,7 @@ server <- function(input, output, session) {
       ss = input$contentInfo[[x]]
       ss2 = input$sizeInfo[[x]]
       if (ss$type == "text") {
-        tt = text_array_wrap(mydata()[1,ss$var], input$font_size, round(ss2$width*input$label_width,3), round(ss2$height*input$label_height,3), ss$fontfamily, useMarkdown = T)
+        tt = text_array_wrap(mydata()[1,ss$var], input$font_size, round(ss2$width*input$label_width,3), round(ss2$height*input$label_height,3), ss$fontfamily, useMarkdown = T, unit = input$unit)
         content = tt$text
         Fsz = tt$font_size
         cat("Final Font size used is", Fsz, "\n")
@@ -387,13 +404,13 @@ server <- function(input, output, session) {
     grDevices::png(outputfile,
                    width = input$label_width,
                    height = input$label_height,
-                   units = "in", res=300#, family = input$fontfamily
+                   units = input$unit, res=300#, family = input$fontfamily
     )
     if (input$border_type == "rectangle") grid::grid.rect()
-    else if (input$border_type == "circle") grid::grid.circle(r=grid::unit(min(input$label_width, input$label_height)/2, "inches"))
+    else if (input$border_type == "circle") grid::grid.circle(r=grid::unit(min(input$label_width, input$label_height)/2, input$unit))
     else{# both
       grid::grid.rect()
-      grid::grid.circle(r=grid::unit(min(input$label_width, input$label_height)/2, "inches"))
+      grid::grid.circle(r=grid::unit(min(input$label_width, input$label_height)/2, input$unit))
     }
     
     if (length(vp_list) > 0){
@@ -420,8 +437,8 @@ server <- function(input, output, session) {
     }
     grDevices::dev.off()
     list(src = outputfile,
-         width = 100 * input$label_width, 
-         height = 100 * input$label_height,
+         width = 200, 
+         height = 200 * input$label_height/input$label_width,
          alt = "Label Preview")
   }, deleteFile = TRUE
   )
@@ -455,7 +472,7 @@ server <- function(input, output, session) {
       ss = input$contentInfo[[x]]
       ss2 = input$sizeInfo[[x]]
       if (ss$type == "text") {
-        tt = text_array_wrap(mydata()[,ss$var], input$font_size, round(ss2$width*input$label_width,3), round(ss2$height*input$label_height,3), ss$fontfamily, useMarkdown = T)
+        tt = text_array_wrap(mydata()[,ss$var], input$font_size, round(ss2$width*input$label_width,3), round(ss2$height*input$label_height,3), ss$fontfamily, useMarkdown = T, unit = input$unit)
         content = tt$text
         Fsz = tt$font_size
         cat("Final Font size used is", Fsz, "\n")
@@ -493,7 +510,8 @@ server <- function(input, output, session) {
       text_align = input$text_align, # left or center
       useMarkdown = T,
       ECols = input$ECol - 1,
-      ERows = input$ERow - 1
+      ERows = input$ERow - 1,
+      unit = input$unit
     )
     status<-"Done!"
     status
@@ -548,7 +566,7 @@ server <- function(input, output, session) {
       if (ss$type == "text") {
         rr = paste(
           rr,
-          paste0('tt = text_array_wrap(df$', ss$var, ',',  input$font_size, ', ', round(ss2$width*input$label_width,3), ',', round(ss2$height*input$label_height,3), ',"', ss$fontfamily, '", useMarkdown = T)'),
+          paste0('tt = text_array_wrap(df$', ss$var, ',',  input$font_size, ', ', round(ss2$width*input$label_width,3), ',', round(ss2$height*input$label_height,3), ',"', ss$fontfamily, '", useMarkdown = T, unit="',input$unit,'")'),
           'content = tt$text',
           'Fsz = tt$font_size',
           paste0('vp = grid::viewport(x = ', round(ss2$x,3), ', y = ', round(1-ss2$y,3), ', width = ', round(ss2$width,3), ', height = ', round(ss2$height,3), ', just = c("left", "top"), gp=grid::gpar(fontsize = Fsz, lineheight = 0.8, fontfamily="', ss$fontfamily, '", fontface=', ss$fontface, ', col="', ss$fontcolor,'"))'),
@@ -600,7 +618,8 @@ server <- function(input, output, session) {
              "',\nuseMarkdown = T",
              ",\nECols = ", input$ECol - 1,
              ",\nERows = ", input$ERow - 1,
-             ")"
+             ",\nunit = '", input$unit,
+             "')"
       )
     )
   })
