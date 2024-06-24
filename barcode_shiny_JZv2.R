@@ -213,7 +213,7 @@ server <- function(input, output, session) {
   output$select_content <- renderUI({
     df = mydata()
     data_choices = as.list(df[1,])
-    if(is.null(names(data_choices)) & length(data_choices)==1) names(data_choices) = "label"
+    if(is.null(names(data_choices)) & length(data_choices)==1) names(data_choices) = names(df)[1] #"label"
     cat("data_choices are:\n")
     print(data_choices)
     tagList(
