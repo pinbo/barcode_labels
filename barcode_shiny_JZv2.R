@@ -332,9 +332,9 @@ server <- function(input, output, session) {
       updateNumericInput(session, "numcol", value = 3)
       updateNumericInput(session, "page_width", value = 8.5)
       updateNumericInput(session, "page_height", value = 11)
-      updateNumericInput(session, "label_width", value = 2.63)
+      updateNumericInput(session, "label_width", value = 2.625)
       updateNumericInput(session, "label_height", value = 1.0)
-      updateNumericInput(session, "width_margin", value = 0.3)
+      updateNumericInput(session, "width_margin", value = 0.1875)
       updateNumericInput(session, "height_margin", value = 0.5)
       updateSelectInput(session, "unit", selected = "in")
     }
