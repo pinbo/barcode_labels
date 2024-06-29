@@ -27,7 +27,7 @@ ui <- fluidPage(
       fluidRow(
         column(width = 6,
                fileInput("labels", 
-                         "1. Choose a text file of ID codes.", 
+                         "1. Choose a text file", 
                          multiple=FALSE,
                          accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv"))),
         column(width = 2,
@@ -39,12 +39,18 @@ ui <- fluidPage(
       ),
       # p(strong("Or input manually if all labels are the same")),
       fluidRow(
-        column(width = 6,
+        column(width = 5,
                textInput("simpleText", "Or input manually repeated labels", value = "", placeholder = "such as 'abc\\n123' ('\\n' for line break)")),
-        column(width = 3,
+        column(width = 2,
                numericInput("simpleTextRepeat", 
-                            "Number of labels", 
+                            "No. of labels", 
                             value = 4, min = 1)),
+        column(
+          width = 3,
+          radioButtons("appendNumber", 
+                       "Append a number?", 
+                       choices = c(Yes = TRUE, No = FALSE),
+                       selected = FALSE, inline = TRUE) ),
         column(width=2, actionButton("createDataset", "Create Dataset", style="background-color: #82e0e8"), style = "margin-top: 25px;" )
       ),
       p(strong("2. (Optional) Create new variables")),
@@ -205,6 +211,7 @@ server <- function(input, output, session) {
     if(input$simpleText != "" & input$simpleTextRepeat > 0){
       tt = gsub("\\\\n","\n",input$simpleText) # need this to get the correct line break
       df = data.frame(label=rep(tt, input$simpleTextRepeat))
+      if (input$appendNumber) df$label = paste(df$label, 1:input$simpleTextRepeat)
       mydata(df)
     }
   })
