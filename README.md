@@ -5,7 +5,7 @@ It is a modification of the shiny RStudio pluggin of package [baRcodeR](https://
 
 It was built on R package [barcodeLabel](https://github.com/pinbo/barcodeLabel).
 
-A shiny app is available at: https://junli.shinyapps.io/label_barcodes/
+A shiny app is available at: https://junli.shinyapps.io/barcode_labels/
 
 Please use `barcode_shiny_JZv2.R` for local use.
 

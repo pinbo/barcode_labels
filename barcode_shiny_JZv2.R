@@ -1,4 +1,5 @@
 # 2023-08-15: draggable viewport using interact.js
+# 2026-07-11: each label has its font size
 library(shiny)
 # devtools::install_github("pinbo/barcodeLabel")
 library(barcodeLabel)
@@ -189,7 +190,8 @@ ui <- fluidPage(
       tags$ol(
         tags$li("You can customize the label sizes by directly changing the parameters."), 
         tags$li("Show border: set to YES first to see how your text fit in the label sheets. Please set to NO for the final printing file."),
-        tags$li("Please choose 'NO Scaling' or 'Actual size' when printing on a printer.")
+        tags$li("Please choose 'NO Scaling' or 'Actual size' when printing on a printer."),
+        tags$li("Update 2026-07-11: now each label has its own font size. You can still reduce the 'Max. Font Size' to have them the same font")
       ),
       width = 4
     )
@@ -482,6 +484,7 @@ server <- function(input, output, session) {
       if (ss$type == "text") {
         tt = text_array_wrap(mydata()[,ss$var], input$font_size, round(ss2$width*input$label_width,3), round(ss2$height*input$label_height,3), ss$fontfamily, useMarkdown = T, unit = input$unit)
         content = tt$text
+        attr(content, "per_label_fontsize") = tt$per_label_font_size
         Fsz = tt$font_size
         cat("Final Font size used is", Fsz, "\n")
         vp = grid::viewport(x = round(ss2$x,3), y = round(1-ss2$y,3), width = round(ss2$width,3), height = round(ss2$height,3), just = c("left", "top"), gp=grid::gpar(fontsize = Fsz, lineheight = 0.8, fontfamily=ss$fontfamily, fontface=as.numeric(ss$fontface), col=ss$fontcolor))
